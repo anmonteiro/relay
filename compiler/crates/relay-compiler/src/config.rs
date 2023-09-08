@@ -395,7 +395,7 @@ Example file:
             .map(|(_, first_project)| &first_project.typegen_config.language);
         let generate_extra_artifacts: Option<GenerateExtraArtifactsFn> = match language {
             Some(TypegenLanguage::OCaml) => Some(Box::new(ocaml_generate_extra_artifacts)),
-            _ => None
+            _ => None,
         };
 
         let config = Self {
@@ -412,7 +412,7 @@ Example file:
             header: config_file.header,
             codegen_command: config_file.codegen_command,
             load_saved_state_file: None,
-            generate_extra_artifacts: generate_extra_artifacts,
+            generate_extra_artifacts,
             generate_virtual_id_file_name: None,
             saved_state_config: config_file.saved_state_config,
             saved_state_loader: None,

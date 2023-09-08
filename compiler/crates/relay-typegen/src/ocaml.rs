@@ -15,7 +15,7 @@ use log::{debug, warn};
 
 use crate::melange_ast::*;
 use crate::melange_relay_visitor::{
-    MelangeRelayFragmentDirective, MelangeRelayOperationMetaData, MelangeRelayOperationDirective,
+    MelangeRelayFragmentDirective, MelangeRelayOperationDirective, MelangeRelayOperationMetaData,
 };
 use crate::ocaml_utils::*;
 use crate::writer::{KeyValuePairProp, Prop, Writer, AST};
@@ -386,7 +386,9 @@ fn ast_to_prop_value(
                                 state.conversion_instructions.push(InstructionContainer {
                                     context: context.clone(),
                                     at_path: new_at_path,
-                                    instruction: ConverterInstructions::BlockTraversal(found_in_array),
+                                    instruction: ConverterInstructions::BlockTraversal(
+                                        found_in_array,
+                                    ),
                                 });
                             }
                         }
@@ -676,14 +678,13 @@ fn get_object_prop_type_as_string(
             &ScalarValues::String => String::from("string"),
         },
         &PropType::Array((nullable, inner_list_type)) => {
-            let mut str = String::from(
-                get_object_prop_type_as_string(
-                    state,
-                    inner_list_type.as_ref(),
-                    &context,
-                    indentation,
-                    field_path_name
-                ));
+            let mut str = String::from(get_object_prop_type_as_string(
+                state,
+                inner_list_type.as_ref(),
+                &context,
+                indentation,
+                field_path_name,
+            ));
 
             if nullable.to_owned() {
                 write!(str, " option").unwrap();
@@ -1077,7 +1078,6 @@ fn write_converter_map(
     name: &String,
     direction: ConversionDirection,
 ) -> Result {
-
     write_indentation(str, indentation).unwrap();
     write!(str, "let {}ConverterMap = ", name).unwrap();
 
@@ -1355,7 +1355,11 @@ fn write_union_converters(str: &mut String, indentation: usize, union: &Union) -
     }
 
     write_indentation(str, indentation + 1).unwrap();
-    writeln!(str, "| `UnselectedUnionMember v -> [%mel.obj {{ __typename = v }}]").unwrap();
+    writeln!(
+        str,
+        "| `UnselectedUnionMember v -> [%mel.obj {{ __typename = v }}]"
+    )
+    .unwrap();
 
     write_indentation(str, indentation).unwrap();
 
@@ -1370,7 +1374,7 @@ enum ObjectPrintMode {
 
 enum NullabilityMode {
     Option,
-    Nullable
+    Nullable,
 }
 
 fn write_record_type_start(
@@ -1379,8 +1383,7 @@ fn write_record_type_start(
     name: &String,
 ) -> Result {
     match print_mode {
-        ObjectPrintMode::Standalone |
-        ObjectPrintMode::StartOfRecursiveChain => {
+        ObjectPrintMode::Standalone | ObjectPrintMode::StartOfRecursiveChain => {
             write!(str, "type {} = ", name).unwrap();
         }
         ObjectPrintMode::PartOfRecursiveChain => {
@@ -1401,7 +1404,13 @@ fn write_object_definition(
     context: &Context,
     is_refetch_var: bool,
 ) -> Result {
-    let nullability = match (state.operation_meta_data.operation_directives.contains(&MelangeRelayOperationDirective::NullableVariables), context) {
+    let nullability = match (
+        state
+            .operation_meta_data
+            .operation_directives
+            .contains(&MelangeRelayOperationDirective::NullableVariables),
+        context,
+    ) {
         (true, &Context::Variables | &Context::RootObject(_)) => NullabilityMode::Nullable,
         _ => NullabilityMode::Option,
     };
@@ -1493,7 +1502,7 @@ fn write_object_definition(
                         true,
                         match nullability {
                             NullabilityMode::Option => false,
-                            NullabilityMode::Nullable => true
+                            NullabilityMode::Nullable => true,
                         }
                     )
                 ),
@@ -1510,7 +1519,7 @@ fn write_object_definition(
             },
             match (&nullability, prop.nullable) {
                 (NullabilityMode::Nullable, true) => " ",
-                _ => ""
+                _ => "",
             },
             // We suppress dead code warnings for a set of keys that we know
             // don't affect overfetching, and are used internally by
@@ -1822,8 +1831,7 @@ fn write_get_connection_nodes_function(
                             local_indentation += 1;
                             if edges_nullable {
                                 write_indentation(str, local_indentation).unwrap();
-                                writeln!(str, "|. Belt.Array.keepMap(function ")
-                                    .unwrap();
+                                writeln!(str, "|. Belt.Array.keepMap(function ").unwrap();
 
                                 write_indentation(&mut ending_str, local_indentation).unwrap();
                                 writeln!(ending_str, ")").unwrap();
@@ -1910,7 +1918,17 @@ impl Writer for OCamlPrinter {
                     writeln!(
                         generated_types,
                         "type {} = RelaySchemaAssets_graphql.input_{}{}",
-                        input_object.record_name, input_obj_name, if self.operation_meta_data.operation_directives.contains(&MelangeRelayOperationDirective::NullableVariables) { "_nullable" } else {""}
+                        input_object.record_name,
+                        input_obj_name,
+                        if self
+                            .operation_meta_data
+                            .operation_directives
+                            .contains(&MelangeRelayOperationDirective::NullableVariables)
+                        {
+                            "_nullable"
+                        } else {
+                            ""
+                        }
                     )
                     .unwrap();
                 }
@@ -2212,7 +2230,11 @@ impl Writer for OCamlPrinter {
                     String::from("variables"),
                     false,
                     ConversionDirection::Wrap,
-                    if self.operation_meta_data.operation_directives.contains(&MelangeRelayOperationDirective::NullableVariables) {
+                    if self
+                        .operation_meta_data
+                        .operation_directives
+                        .contains(&MelangeRelayOperationDirective::NullableVariables)
+                    {
                         NullableType::Null
                     } else {
                         NullableType::Undefined
@@ -3018,7 +3040,7 @@ impl Writer for OCamlPrinter {
     ) -> Result {
         let target_name = match import_as {
             Some(name) => name,
-            None => name
+            None => name,
         };
         if target_name.ends_with("ResolverType") {
             self.relay_resolvers.push(RelayResolverInfo {
@@ -3052,4 +3074,3 @@ impl OCamlPrinter {
         }
     }
 }
-

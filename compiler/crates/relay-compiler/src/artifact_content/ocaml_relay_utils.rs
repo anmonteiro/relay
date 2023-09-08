@@ -17,8 +17,7 @@ pub fn ocaml_find_code_import_references(concrete_text: &str) -> Vec<ImportType>
         static ref PREFIX_RANGE_GRAPHQL_NODE: RangeTo<usize> = RangeTo {
             end: String::from("ocaml_graphql_node_").len()
         };
-        static ref RE_MODULE_IMPORT: Regex =
-            Regex::new(r"ocaml_module_([A-Za-z0-9_]*)").unwrap();
+        static ref RE_MODULE_IMPORT: Regex = Regex::new(r"ocaml_module_([A-Za-z0-9_]*)").unwrap();
         static ref PREFIX_RANGE_MODULE_IMPORT: RangeTo<usize> = RangeTo {
             end: String::from("ocaml_module_").len()
         };
@@ -147,7 +146,6 @@ pub fn ocaml_make_operation_type_and_node_text(
     str
 }
 
-
 // Write a @sourceLoc annotation pointing to where this thing was found
 pub fn ocaml_get_source_loc_text(source_file: &SourceLocationKey) -> Option<String> {
     match source_file {
@@ -167,5 +165,3 @@ pub fn ocaml_get_source_loc_text(source_file: &SourceLocationKey) -> Option<Stri
 pub fn ocaml_get_comments_for_generated() -> String {
     String::from("(* @generated *)\n[%%mel.raw \"/* @generated */\"]")
 }
-
-

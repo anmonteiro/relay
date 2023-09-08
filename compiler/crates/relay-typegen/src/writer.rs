@@ -17,8 +17,8 @@ use relay_config::TypegenLanguage;
 
 use crate::flow::FlowPrinter;
 use crate::javascript::JavaScriptPrinter;
-use crate::ocaml::DefinitionType;
 use crate::ocaml;
+use crate::ocaml::DefinitionType;
 use crate::ocaml_utils;
 use crate::typescript::TypeScriptPrinter;
 use crate::TypegenContext;

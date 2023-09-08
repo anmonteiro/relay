@@ -121,7 +121,7 @@ pub fn extract(input: &str) -> Vec<JavaScriptSourceFeature> {
                                     match c {
                                         '|' => {
                                             expected_close_char = '|';
-                                            break
+                                            break;
                                         }
                                         _ => {
                                             continue 'code;
@@ -142,7 +142,7 @@ pub fn extract(input: &str) -> Vec<JavaScriptSourceFeature> {
                 let mut has_visited_first_char = false;
                 for (i, c) in &mut it {
                     match c {
-                        c if c == expected_close_char  => {
+                        c if c == expected_close_char => {
                             let end = i;
                             let text = &input[start + (8 + whitespace_num)..end];
                             res.push(JavaScriptSourceFeature::GraphQL(GraphQLSource::new(

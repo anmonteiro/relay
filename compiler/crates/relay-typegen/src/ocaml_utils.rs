@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use common::{WithLocation, ScalarName};
+use common::{ScalarName, WithLocation};
 use graphql_ir::{
     reexport::{Intern, StringKey},
     Argument, ConstantValue, FragmentDefinition, OperationDefinition, ProvidedVariableMetadata,
@@ -13,7 +13,6 @@ use relay_transforms::RelayDirective;
 use schema::{SDLSchema, Schema, Type, TypeReference};
 
 use crate::{
-    ocaml::{ DefinitionType, OCamlPrinter},
     melange_ast::{
         AstToStringNeedsConversion, Context, ConverterInstructions, FullEnum, ProvidedVariable,
     },
@@ -21,6 +20,7 @@ use crate::{
         find_assets_in_fragment, find_assets_in_operation, CustomScalarsMap,
         MelangeRelayOperationMetaData,
     },
+    ocaml::{DefinitionType, OCamlPrinter},
     writer::{Prop, StringLiteral, AST},
 };
 
@@ -678,8 +678,7 @@ pub fn get_connection_key_maker(
                 format!(
                     "{}({}: {}{})",
                     match (&default_value, &variable.type_) {
-                        (Some(_), _) |
-                        (None, TypeReference::List(_) | TypeReference::Named(_)) =>
+                        (Some(_), _) | (None, TypeReference::List(_) | TypeReference::Named(_)) =>
                             String::from("?"),
                         (None, TypeReference::NonNull(_)) => String::from("~"),
                     },
@@ -859,11 +858,7 @@ pub fn get_connection_key_maker(
     }
 
     write_indentation(&mut str, local_indentation).unwrap();
-    writeln!(
-        str,
-        "internal_makeConnectionId connectionParentDataId args"
-    )
-    .unwrap();
+    writeln!(str, "internal_makeConnectionId connectionParentDataId args").unwrap();
 
     local_indentation -= 1;
     write_indentation(&mut str, local_indentation).unwrap();
@@ -1070,4 +1065,3 @@ mod tests {
 pub fn is_plural(node: &FragmentDefinition) -> bool {
     RelayDirective::find(&node.directives).map_or(false, |relay_directive| relay_directive.plural)
 }
-

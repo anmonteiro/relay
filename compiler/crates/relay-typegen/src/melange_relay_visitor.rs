@@ -5,7 +5,7 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-use common::{ScalarName, DirectiveName};
+use common::{DirectiveName, ScalarName};
 use fnv::FnvBuildHasher;
 use graphql_ir::{
     Argument, ConstantValue, Directive, Field, FragmentDefinition, OperationDefinition, Selection,
@@ -15,8 +15,8 @@ use indexmap::IndexMap;
 use intern::string_key::{Intern, StringKey};
 use lazy_static::lazy_static;
 use relay_config::CustomScalarType;
-use schema::{SDLSchema, Schema, Type};
 use relay_config::TypegenLanguage;
+use schema::{SDLSchema, Schema, Type};
 
 use crate::ocaml_utils;
 type FnvIndexMap<K, V> = IndexMap<K, V, FnvBuildHasher>;
@@ -199,13 +199,13 @@ fn visit_selections<'a>(
 
                     operation_meta_data.connection_config = Some(MelangeRelayConnectionConfig {
                         connection_id_maker_fn: ocaml_utils::get_connection_key_maker(
-                                0,
-                                &relevant_arguments,
-                                &variable_definitions,
-                                &key,
-                                &schema,
-                                &custom_scalars,
-                                ),
+                            0,
+                            &relevant_arguments,
+                            &variable_definitions,
+                            &key,
+                            &schema,
+                            &custom_scalars,
+                        ),
                         key,
                         at_object_path: current_path.clone(),
                         field_name: field.alias_or_name(schema).to_string(),
@@ -301,7 +301,7 @@ pub fn find_assets_in_fragment<'a>(
         .collect();
 
     let mut operation_meta_data = MelangeRelayOperationMetaData {
-        language: language,
+        language,
         connection_config: None,
         custom_scalars: custom_scalars.clone(),
         custom_scalars_raw_typenames: ocaml_utils::get_custom_scalar_raw_typenames(&custom_scalars),
@@ -352,7 +352,7 @@ pub fn find_assets_in_operation<'a>(
         .collect();
 
     let mut operation_meta_data = MelangeRelayOperationMetaData {
-        language: language,
+        language,
         connection_config: None,
         custom_scalars: custom_scalars.clone(),
         custom_scalars_raw_typenames: ocaml_utils::get_custom_scalar_raw_typenames(&custom_scalars),

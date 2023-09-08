@@ -799,8 +799,7 @@ fn write_import_type_from(
 ) -> FmtResult {
     let language = &project_config.typegen_config.language;
     match language {
-        TypegenLanguage::JavaScript |
-        TypegenLanguage::OCaml => Ok(()),
+        TypegenLanguage::JavaScript | TypegenLanguage::OCaml => Ok(()),
         TypegenLanguage::Flow => writeln!(section, "import type {{ {} }} from '{}';", type_, from),
         TypegenLanguage::TypeScript => writeln!(
             section,
@@ -960,7 +959,7 @@ pub fn generate_operation_ocaml(
                 }
             };
         }
-        _ => ()
+        _ => (),
     };
 
     // -- Begin Metadata Annotations Section --
@@ -1018,7 +1017,7 @@ pub fn generate_operation_ocaml(
             )
             .unwrap();
         }
-        _ => ()
+        _ => (),
     };
 
     let mut top_level_statements: TopLevelStatements = Default::default();
@@ -1093,7 +1092,7 @@ pub fn generate_operation_ocaml(
                 .unwrap()
             }
         }
-        _ => ()
+        _ => (),
     };
 
     content_sections.push(ContentSection::Generic(section));
@@ -1120,7 +1119,6 @@ pub fn generate_read_only_fragment_ocaml(
 ) -> Result<Vec<u8>, FmtError> {
     let mut content_sections = ContentSections::default();
 
-
     match project_config.typegen_config.language {
         TypegenLanguage::OCaml => {
             match super::ocaml_relay_utils::ocaml_get_source_loc_text(
@@ -1139,9 +1137,8 @@ pub fn generate_read_only_fragment_ocaml(
                     content_sections.push(ContentSection::Generic(section))
                 }
             }
-
         }
-        _ => ()
+        _ => (),
     };
 
     // -- Begin Metadata Annotations Section --
@@ -1178,7 +1175,7 @@ pub fn generate_read_only_fragment_ocaml(
             )
             .unwrap();
         }
-        _ => ()
+        _ => (),
     };
 
     let mut import_statements = Default::default();
@@ -1196,7 +1193,7 @@ pub fn generate_read_only_fragment_ocaml(
             )
             .unwrap();
         }
-        _ => ()
+        _ => (),
     };
 
     content_sections.push(ContentSection::Generic(section));
