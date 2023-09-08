@@ -485,9 +485,9 @@ impl<'b> JSONPrinter<'b> {
                 };
                 self.write_js_dependency(
                     f,
-                    ModuleImportName::Default(format!("rescript_graphql_node_{}", variable_name).intern()),
+                    ModuleImportName::Default(format!("ocaml_graphql_node_{}", variable_name).intern()),
                     Cow::Owned(format!(
-                        "rescript_graphql_node_{}",
+                        "ocaml_graphql_node_{}",
                         get_module_path(self.js_module_format, *key)
                     )),
                 )
@@ -496,14 +496,14 @@ impl<'b> JSONPrinter<'b> {
                 .write_js_dependency(
                     f,
                     ModuleImportName::Default(format!(
-                        "rescript_module_{}",
-                        common::rescript_utils::get_module_name_from_file_path(
+                        "ocaml_module_{}",
+                        common::ocaml_utils::get_module_name_from_file_path(
                             &path.to_string().as_str()
                         )
                     ).intern()),
                     Cow::Owned(format!(
-                        "rescript_module_{}",
-                        common::rescript_utils::get_module_name_from_file_path(
+                        "ocaml_module_{}",
+                        common::ocaml_utils::get_module_name_from_file_path(
                             &path.to_string().as_str()
                         )
                     )),

@@ -17,7 +17,7 @@ mod location;
 mod named_item;
 mod perf_logger;
 mod pointer_address;
-pub mod rescript_utils;
+pub mod ocaml_utils;
 mod rollout;
 mod span;
 pub mod sync;

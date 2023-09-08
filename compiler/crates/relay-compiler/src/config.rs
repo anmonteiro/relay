@@ -56,7 +56,6 @@ use watchman_client::pdu::ScmAwareClockData;
 use crate::build_project::artifact_writer::ArtifactFileWriter;
 use crate::build_project::artifact_writer::ArtifactWriter;
 use crate::build_project::generate_extra_artifacts::GenerateExtraArtifactsFn;
-use crate::build_project::rescript_generate_extra_files::rescript_generate_extra_artifacts;
 use crate::build_project::ocaml_generate_extra_files::ocaml_generate_extra_artifacts;
 use crate::build_project::AdditionalValidations;
 use crate::compiler_state::CompilerState;
@@ -395,7 +394,6 @@ Example file:
             .first()
             .map(|(_, first_project)| &first_project.typegen_config.language);
         let generate_extra_artifacts: Option<GenerateExtraArtifactsFn> = match language {
-            Some(TypegenLanguage::ReScript) => Some(Box::new(rescript_generate_extra_artifacts)),
             Some(TypegenLanguage::OCaml) => Some(Box::new(ocaml_generate_extra_artifacts)),
             _ => None
         };
