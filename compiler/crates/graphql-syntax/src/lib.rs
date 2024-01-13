@@ -26,7 +26,7 @@ pub use parser::FragmentArgumentSyntaxKind;
 pub use parser::ParserFeatures;
 pub use source::GraphQLSource;
 pub use syntax_error::SyntaxError;
-pub use utils::*;
+// pub use utils::*;
 
 use crate::parser::Parser;
 
