@@ -1953,6 +1953,7 @@ dependencies = [
  "fnv",
  "graphql-ir",
  "graphql-syntax",
+ "graphql-test-helpers",
  "indexmap 2.1.0",
  "intern",
  "itertools",

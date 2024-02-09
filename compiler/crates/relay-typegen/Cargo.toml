@@ -31,6 +31,7 @@ schema = { path = "../schema" }
 [dev-dependencies]
 fixture-tests = { path = "../fixture-tests" }
 graphql-syntax = { path = "../graphql-syntax" }
+graphql-test-helpers = { path = "../graphql-test-helpers" }
 relay-codegen = { path = "../relay-codegen" }
 relay-test-schema = { path = "../relay-test-schema" }
 tokio = { version = "1.29.1", features = ["full", "test-util", "tracing"] }
