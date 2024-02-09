@@ -204,7 +204,7 @@ pub(crate) fn ocaml_generate_extra_artifacts(
 
     vec![Artifact {
         artifact_source_keys: vec![],
-        path: project_config.path_for_language_specific_artifact(dummy_source_file, "RelaySchemaAssets".to_string()),
+        path: project_config.path_for_language_specific_artifact(dummy_source_file, "RelaySchemaAssets_graphql".to_string()),
         source_file: dummy_source_file,
         content: crate::ArtifactContent::Generic {
             content: content.as_bytes().to_vec(),
