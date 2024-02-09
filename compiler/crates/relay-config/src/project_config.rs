@@ -380,9 +380,9 @@ impl ProjectConfig {
             self.create_path_for_artifact(source_location, filename)
         } else {
             let suffix = match &self.typegen_config.language {
-                TypegenLanguage::Flow | TypegenLanguage::JavaScript | TypegenLanguage::TypeScript => {
-                    ".graphql"
-                }
+                TypegenLanguage::Flow
+                | TypegenLanguage::JavaScript
+                | TypegenLanguage::TypeScript => ".graphql",
                 TypegenLanguage::OCaml => "_graphql",
             };
             self.path_for_language_specific_artifact(

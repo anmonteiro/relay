@@ -54,10 +54,10 @@ use watchman_client::pdu::ScmAwareClockData;
 
 use crate::build_project::artifact_writer::ArtifactFileWriter;
 use crate::build_project::artifact_writer::ArtifactWriter;
-use crate::build_project::generate_extra_artifacts::GenerateExtraArtifactsFn;
 use crate::build_project::generate_extra_artifacts::default_generate_extra_artifacts_fn;
-use crate::build_project::ocaml_generate_extra_files::ocaml_generate_extra_artifacts;
+use crate::build_project::generate_extra_artifacts::GenerateExtraArtifactsFn;
 use crate::build_project::get_artifacts_file_hash_map::GetArtifactsFileHashMapFn;
+use crate::build_project::ocaml_generate_extra_files::ocaml_generate_extra_artifacts;
 use crate::build_project::AdditionalValidations;
 use crate::compiler_state::CompilerState;
 use crate::compiler_state::ProjectSet;
