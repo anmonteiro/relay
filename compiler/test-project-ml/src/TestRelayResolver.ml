@@ -1,8 +1,5 @@
 (**
- * @RelayResolver
- *
- * @onType User
- * @fieldName greeting
+ * @RelayResolver User.greeting: String
  * @rootFragment TestRelayResolver
  *
  * A greeting for the user which includes their name.

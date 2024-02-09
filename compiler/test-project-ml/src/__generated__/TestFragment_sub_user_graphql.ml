@@ -5,7 +5,7 @@ module Types = struct
   [@@@ocaml.warning "-30"]
 
   type fragment = {
-    greeting: TestRelayResolver.t option;
+    greeting: string option;
     lastName: string;
   }
 end
