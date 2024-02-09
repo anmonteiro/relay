@@ -11,16 +11,16 @@
 
 'use strict';
 
-import type {Sink} from '../../../relay-runtime/network/RelayObservable';
 import type {PreloadableConcreteRequest} from '../EntryPointTypes.flow';
 import type {usePreloadedQueryTestQuery} from './__generated__/usePreloadedQueryTestQuery.graphql';
+import type {Sink} from 'relay-runtime';
 import type {GraphQLResponse} from 'relay-runtime/network/RelayNetworkTypes';
 
+const useFragmentNode_LEGACY = require('../legacy/useFragmentNode');
 const {loadQuery} = require('../loadQuery');
 const preloadQuery_DEPRECATED = require('../preloadQuery_DEPRECATED');
-const usePreloadedQuery_REACT_CACHE = require('../react-cache/usePreloadedQuery_REACT_CACHE');
 const RelayEnvironmentProvider = require('../RelayEnvironmentProvider');
-const usePreloadedQuery_LEGACY = require('../usePreloadedQuery');
+const usePreloadedQuery = require('../usePreloadedQuery');
 const React = require('react');
 const TestRenderer = require('react-test-renderer');
 const {
@@ -29,7 +29,6 @@ const {
   Observable,
   PreloadableQueryRegistry,
   RecordSource,
-  RelayFeatureFlags,
   Store,
   graphql,
 } = require('relay-runtime');
@@ -117,28 +116,22 @@ afterAll(() => {
 });
 
 describe.each([
-  ['React Cache', usePreloadedQuery_REACT_CACHE],
-  ['Legacy', usePreloadedQuery_LEGACY],
-])('usePreloadedQuery (%s)', (_hookName, usePreloadedQuery) => {
-  const usingReactCache = usePreloadedQuery === usePreloadedQuery_REACT_CACHE;
-  // Our open-source build is still on React 17, so we need to skip these tests there:
-  if (usingReactCache) {
-    // $FlowExpectedError[prop-missing] Cache not yet part of Flow types
-    if (React.unstable_getCacheForType === undefined) {
-      return;
+  ['With legacy useFragmentNode', useFragmentNode_LEGACY],
+  ['With new `useFragmentInternal` implementation', null],
+])('usePreloadedQuery (%s)', (_hookName, useFragmentNode) => {
+  beforeEach(() => {
+    if (useFragmentNode != null) {
+      jest.mock('../HooksImplementation', () => {
+        return {
+          get() {
+            return {
+              useFragmentNode: useFragmentNode,
+            };
+          },
+        };
+      });
     }
-  }
-  let originalReactCacheFeatureFlag;
-  beforeEach(() => {
-    originalReactCacheFeatureFlag = RelayFeatureFlags.USE_REACT_CACHE;
-    RelayFeatureFlags.USE_REACT_CACHE =
-      usePreloadedQuery === usePreloadedQuery_REACT_CACHE;
-  });
-  afterEach(() => {
-    RelayFeatureFlags.USE_REACT_CACHE = originalReactCacheFeatureFlag;
-  });
 
-  beforeEach(() => {
     dataSource = undefined;
     // $FlowFixMe[missing-local-annot] error found when enabling Flow LTI mode
     fetch = jest.fn((_query, _variables, _cacheConfig) =>
@@ -1100,7 +1093,7 @@ describe.each([
         );
         let data;
         function Component(props: any) {
-          data = usePreloadedQuery(query, props.prefetched);
+          data = usePreloadedQuery<any, any>(query, props.prefetched);
           return data.node?.name;
         }
         const renderer = TestRenderer.create(
@@ -1201,7 +1194,7 @@ describe.each([
         );
         let data;
         function Component(props: any) {
-          data = usePreloadedQuery(query, props.prefetched);
+          data = usePreloadedQuery<any, any>(query, props.prefetched);
           return data.node?.name;
         }
         const renderer = TestRenderer.create(

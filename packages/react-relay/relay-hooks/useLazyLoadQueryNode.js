@@ -19,14 +19,16 @@ import type {
   OperationType,
   RenderPolicy,
 } from 'relay-runtime';
+import type {ReaderFragment} from 'relay-runtime/util/ReaderNode';
 
+const HooksImplementation = require('./HooksImplementation');
 const ProfilerContext = require('./ProfilerContext');
 const {
   getQueryCacheIdentifier,
   getQueryResourceForEnvironment,
 } = require('./QueryResource');
 const useFetchTrackingRef = require('./useFetchTrackingRef');
-const useFragmentNode = require('./useFragmentNode');
+const useFragmentInternal = require('./useFragmentInternal');
 const useRelayEnvironment = require('./useRelayEnvironment');
 const React = require('react');
 
@@ -125,12 +127,26 @@ function useLazyLoadQueryNode<TQuery: OperationType>({
   });
 
   const {fragmentNode, fragmentRef} = preparedQueryResult;
-  const {data} = useFragmentNode<$FlowFixMe>(
+  const data = useFragmentNodeImpl(
     fragmentNode,
     fragmentRef,
     componentDisplayName,
   );
   return data;
+}
+
+function useFragmentNodeImpl(
+  fragment: ReaderFragment,
+  key: mixed,
+  componentDisplayName: string,
+): mixed {
+  const impl = HooksImplementation.get();
+  if (impl && impl.useFragmentNode) {
+    const {data} = impl.useFragmentNode(fragment, key, componentDisplayName);
+    return data;
+  } else {
+    return useFragmentInternal(fragment, key, componentDisplayName);
+  }
 }
 
 module.exports = useLazyLoadQueryNode;

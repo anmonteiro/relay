@@ -67,7 +67,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
         enable_fragment_aliases: FeatureFlag::Enabled,
         ..Default::default()
     };
-    let ir = build_ir_in_relay_mode(&schema, &ast.definitions)
+    let ir = build_ir_in_relay_mode(&schema, &ast.definitions, &feature_flags)
         .map_err(|diagnostics| diagnostics_to_sorted_string(source, &diagnostics))?;
     let program = Program::from_definitions(Arc::clone(&schema), ir);
 
@@ -91,6 +91,9 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
         typegen_config: TypegenConfig {
             language: TypegenLanguage::Flow,
             custom_scalar_types,
+            experimental_emit_semantic_nullability_types: fixture
+                .content
+                .contains("# relay:experimental_emit_semantic_nullability_types"),
             ..Default::default()
         },
         ..Default::default()

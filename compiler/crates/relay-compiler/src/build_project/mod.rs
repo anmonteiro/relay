@@ -41,6 +41,7 @@ use fnv::FnvBuildHasher;
 use fnv::FnvHashMap;
 use fnv::FnvHashSet;
 pub use generate_artifacts::generate_artifacts;
+pub use generate_artifacts::generate_preloadable_query_parameters_artifact;
 pub use generate_artifacts::Artifact;
 pub use generate_artifacts::ArtifactContent;
 use graphql_ir::FragmentDefinitionNameSet;
@@ -186,13 +187,21 @@ pub fn build_programs(
 ) -> Result<BuildProgramsOutput, BuildProjectFailure> {
     let project_name = project_config.name;
     let is_incremental_build = compiler_state.has_processed_changes()
-        && !compiler_state.has_breaking_schema_change(project_name, &project_config.schema_config)
+        && !compiler_state.has_breaking_schema_change(
+            log_event,
+            project_name,
+            &project_config.schema_config,
+        )
         && if let Some(base) = project_config.base {
-            !compiler_state.has_breaking_schema_change(base, &project_config.schema_config)
+            !compiler_state.has_breaking_schema_change(
+                log_event,
+                base,
+                &project_config.schema_config,
+            )
         } else {
             true
         };
-
+    log_event.bool("is_incremental_build", is_incremental_build);
     let (program, source_hashes) = build_raw_program(
         project_config,
         project_asts,
@@ -282,12 +291,7 @@ pub fn build_project(
 
     // Generate artifacts by collecting information from the `Programs`.
     let artifacts_timer = log_event.start("generate_artifacts_time");
-    let artifacts = generate_artifacts(
-        config,
-        project_config,
-        &programs,
-        Arc::clone(&source_hashes),
-    );
+    let artifacts = generate_artifacts(project_config, &programs, Arc::clone(&source_hashes));
     log_event.stop(artifacts_timer);
 
     log_event.number(
@@ -370,6 +374,7 @@ pub async fn commit_project(
     if let Some(generate_extra_artifacts_fn) = &config.generate_extra_artifacts {
         log_event.time("generate_extra_artifacts_time", || {
             artifacts.extend(generate_extra_artifacts_fn(
+                config,
                 project_config,
                 schema,
                 &programs,
@@ -393,7 +398,13 @@ pub async fn commit_project(
     };
 
     let artifacts_file_hash_map = match &config.get_artifacts_file_hash_map {
-        Some(get_fn) => get_fn(&artifacts).await,
+        Some(get_fn) => {
+            let get_artifacts_file_hash_map_timer =
+                log_event.start("get_artifacts_file_hash_map_time");
+            let res = get_fn(&artifacts).await;
+            log_event.stop(get_artifacts_file_hash_map_timer);
+            res
+        }
         _ => None,
     };
 
