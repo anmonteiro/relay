@@ -10,6 +10,7 @@
  */
 
 'use strict';
+
 import type {Sink} from '../../../relay-runtime/network/RelayObservable';
 import type {RequestParameters} from '../../../relay-runtime/util/RelayConcreteNode';
 import type {CacheConfig} from '../../../relay-runtime/util/RelayRuntimeTypes';
@@ -32,8 +33,8 @@ import type {
 import type {Direction, OperationDescriptor, Variables} from 'relay-runtime';
 import type {Query} from 'relay-runtime/util/RelayRuntimeTypes';
 
-const usePaginationFragmentInternal_REACT_CACHE = require('../react-cache/usePaginationFragment_REACT_CACHE');
-const usePaginationFragment_LEGACY = require('../usePaginationFragment');
+const usePaginationFragment_LEGACY = require('../legacy/usePaginationFragment');
+const usePaginationFragment = require('../usePaginationFragment');
 const areEqual = require('areEqual');
 const invariant = require('invariant');
 const React = require('react');
@@ -49,7 +50,6 @@ const {
   Network,
   Observable,
   RecordSource,
-  RelayFeatureFlags,
   Store,
   createOperationDescriptor,
   graphql,
@@ -58,22 +58,9 @@ const {
 const {useMemo, useState} = React;
 
 describe.each([
-  ['React Cache', usePaginationFragmentInternal_REACT_CACHE],
+  ['New', usePaginationFragment],
   ['Legacy', usePaginationFragment_LEGACY],
 ])('usePaginationFragment (%s)', (_hookName, usePaginationFragmentOriginal) => {
-  let isUsingReactCacheImplementation;
-  let originalReactCacheFeatureFlag;
-  beforeEach(() => {
-    isUsingReactCacheImplementation =
-      usePaginationFragmentOriginal ===
-      usePaginationFragmentInternal_REACT_CACHE;
-    originalReactCacheFeatureFlag = RelayFeatureFlags.USE_REACT_CACHE;
-    RelayFeatureFlags.USE_REACT_CACHE = isUsingReactCacheImplementation;
-  });
-  afterEach(() => {
-    RelayFeatureFlags.USE_REACT_CACHE = originalReactCacheFeatureFlag;
-  });
-
   let environment;
   let initialUser;
   let gqlQuery:

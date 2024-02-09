@@ -18,14 +18,9 @@ import type {RelayResolversWithOutputTypeTestTextStyleComponentFragment$key} fro
 import type {RelayResolversWithOutputTypeTestTodoCompleteFragment$key} from './__generated__/RelayResolversWithOutputTypeTestTodoCompleteFragment.graphql';
 
 const React = require('react');
-const {
-  RelayEnvironmentProvider,
-  useClientQuery,
-  useFragment: useFragment_LEGACY,
-  useLazyLoadQuery: useLazyLoadQuery_LEGACY,
-} = require('react-relay');
-const useFragment_REACT_CACHE = require('react-relay/relay-hooks/react-cache/useFragment_REACT_CACHE');
-const useLazyLoadQuery_REACT_CACHE = require('react-relay/relay-hooks/react-cache/useLazyLoadQuery_REACT_CACHE');
+const {RelayEnvironmentProvider, useClientQuery} = require('react-relay');
+const useFragment_LEGACY = require('react-relay/relay-hooks/legacy/useFragment');
+const useFragment = require('react-relay/relay-hooks/useFragment');
 const TestRenderer = require('react-test-renderer');
 const {RelayFeatureFlags} = require('relay-runtime');
 const RelayNetwork = require('relay-runtime/network/RelayNetwork');
@@ -90,20 +85,11 @@ function EnvironmentWrapper({
 }
 
 describe.each([
-  ['React Cache', useLazyLoadQuery_REACT_CACHE, useFragment_REACT_CACHE],
-  ['Legacy', useLazyLoadQuery_LEGACY, useFragment_LEGACY],
-])('Hook implementation: %s', (_hookName, useLazyLoadQuery, useFragment) => {
-  const usingReactCache = useLazyLoadQuery === useLazyLoadQuery_REACT_CACHE;
-  // Our open-source build is still on React 17, so we need to skip these tests there:
-  if (usingReactCache) {
-    // $FlowExpectedError[prop-missing] Cache not yet part of Flow types
-    if (React.unstable_getCacheForType === undefined) {
-      return;
-    }
-  }
+  ['New', useFragment],
+  ['Legacy', useFragment_LEGACY],
+])('Hook implementation: %s', (_hookName, useFragment) => {
   let environment;
   beforeEach(() => {
-    RelayFeatureFlags.USE_REACT_CACHE = usingReactCache;
     environment = createEnvironment();
   });
 

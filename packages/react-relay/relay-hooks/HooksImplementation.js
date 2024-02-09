@@ -11,29 +11,36 @@
 
 'use strict';
 
+import typeof useFragmentNode from './legacy/useFragmentNode';
+import type {UseRefetchableFragmentType} from './legacy/useRefetchableFragment';
 import typeof useFragment from './useFragment';
 import type {UsePaginationFragmentType} from './usePaginationFragment';
-import type {UseRefetchableFragmentType} from './useRefetchableFragment';
 
-const warning = require('warning');
+import warning from 'warning';
 
 type HooksImplementation = {
   useFragment: useFragment,
   usePaginationFragment: UsePaginationFragmentType,
   useRefetchableFragment: UseRefetchableFragmentType,
+  useFragmentNode: useFragmentNode<mixed>,
 };
 
 let implementation: HooksImplementation | null = null;
+let alreadyRequested = false;
 
 function inject(impl: HooksImplementation): void {
-  warning(
-    implementation !== null,
-    'Relay HooksImplementation was injected twice.',
-  );
+  if (alreadyRequested) {
+    warning(
+      false,
+      'HooksImplementation were requested before they were injected.',
+    );
+    return;
+  }
   implementation = impl;
 }
 
 function get(): HooksImplementation | null {
+  alreadyRequested = true;
   return implementation;
 }
 

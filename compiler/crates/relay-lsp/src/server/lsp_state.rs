@@ -250,6 +250,7 @@ impl<TPerfLogger: PerfLogger + 'static, TSchemaDocumentation: SchemaDocumentatio
                             fragment_variables_semantic: FragmentVariablesSemantic::PassedValue,
                             relay_mode: Some(RelayMode),
                             default_anonymous_operation_name: None,
+                            allow_custom_scalar_literals: true, // for compatibility
                         },
                     )
                     .and_then(|documents| {
@@ -299,6 +300,15 @@ impl<TPerfLogger: PerfLogger + 'static, TSchemaDocumentation: SchemaDocumentatio
                         enable_output_type: &project_config
                             .feature_flags
                             .relay_resolver_enable_output_type,
+                        enable_strict_resolver_flavors: &project_config
+                            .feature_flags
+                            .relay_resolvers_enable_strict_resolver_flavors,
+                        allow_legacy_verbose_syntax: &project_config
+                            .feature_flags
+                            .relay_resolvers_allow_legacy_verbose_syntax,
+                        enable_interface_output_type: &project_config
+                            .feature_flags
+                            .relay_resolver_enable_interface_output_type,
                     },
                 )
             });

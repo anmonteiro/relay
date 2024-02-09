@@ -113,7 +113,7 @@ and input_PesticideListSearchInput_nullable = {
   skip: int;
   take: int;
 }
- [@@deriving abstract]
+ [@@deriving jsProperties, getSet]
 external make_InputA: 
   time: SomeModule.Datetime.t -> 
   ?recursiveA: input_InputA -> 

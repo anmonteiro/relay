@@ -13,7 +13,6 @@ use relay_compiler::{
     FileSourceKind,
 };
 use relay_lsp::{start_language_server, LSPExtraDataProvider};
-use relay_typegen::TypegenLanguage;
 use schema::SDLSchema;
 use std::io::Write;
 use std::{
@@ -70,7 +69,6 @@ impl From<CliConfig> for SingleProjectConfigFile {
             schema: cli_config.schema.expect("schema is required."),
             artifact_directory: cli_config.artifact_directory,
             src: cli_config.src.unwrap_or_else(|| PathBuf::from("./")),
-            language: Some(TypegenLanguage::TypeScript),
             ..Default::default()
         }
     }

@@ -118,6 +118,12 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
         enable_resolver_normalization_ast: fixture
             .content
             .contains("# enable_resolver_normalization_ast"),
+        relay_resolvers_enable_strict_resolver_flavors: FeatureFlag::Disabled,
+        relay_resolvers_allow_legacy_verbose_syntax: FeatureFlag::Disabled,
+        enable_relay_resolver_mutations: false,
+        enable_strict_custom_scalars: false,
+        allow_required_in_mutation_response: FeatureFlag::Disabled,
+        allow_resolvers_in_mutation_response: FeatureFlag::Disabled,
     };
 
     let default_project_config = ProjectConfig {
@@ -189,6 +195,7 @@ pub async fn transform_fixture(fixture: &Fixture<'_>) -> Result<String, String> 
             fragment_variables_semantic: FragmentVariablesSemantic::PassedValue,
             relay_mode: Some(RelayMode),
             default_anonymous_operation_name: None,
+            allow_custom_scalar_literals: true, // for compatibility
         },
     );
     let ir = ir_result

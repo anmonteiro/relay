@@ -1,7 +1,7 @@
 use std::fmt::Write;
 
+use super::Config;
 use common::SourceLocationKey;
-use graphql_ir::reexport::Intern;
 use relay_config::ProjectConfig;
 use relay_transforms::Programs;
 use relay_typegen::ocaml_utils::{get_safe_key, print_type_reference};
@@ -10,6 +10,7 @@ use schema::{SDLSchema, Schema, TypeReference};
 use crate::Artifact;
 
 pub(crate) fn ocaml_generate_extra_artifacts(
+    _config: &Config,
     project_config: &ProjectConfig,
     schema: &SDLSchema,
     _programs: &Programs,
@@ -203,7 +204,7 @@ pub(crate) fn ocaml_generate_extra_artifacts(
 
     vec![Artifact {
         artifact_source_keys: vec![],
-        path: project_config.path_for_artifact(dummy_source_file, "RelaySchemaAssets".intern()),
+        path: project_config.path_for_language_specific_artifact(dummy_source_file, "RelaySchemaAssets_graphql".to_string()),
         source_file: dummy_source_file,
         content: crate::ArtifactContent::Generic {
             content: content.as_bytes().to_vec(),
