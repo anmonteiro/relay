@@ -2959,7 +2959,7 @@ impl Writer for OCamlPrinter {
         // essentially extracts the provided variable key name, and its return
         // type. We need those for printing the type + values for provided
         // variables.
-        if name == "ProvidedVariablesType" {
+        if name.contains("__relay_internal__pv__") {
             match &ast {
                 AST::ExactObject(props) => {
                     let mut provided_variables = vec![];

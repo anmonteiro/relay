@@ -1563,11 +1563,8 @@ fn make_prop(
                             TypegenLanguage::Flow | TypegenLanguage::JavaScript => {
                                 AST::RawType(intern!("null | void"))
                             }
-                            TypegenLanguage::TypeScript => {
+                            TypegenLanguage::TypeScript | TypegenLanguage::OCaml => {
                                 AST::RawType(intern!("null | undefined"))
-                            }
-                            TypegenLanguage::OCaml => {
-                                panic!("language: OCaml doesn't print to typescript")
                             }
                         }
                     }
