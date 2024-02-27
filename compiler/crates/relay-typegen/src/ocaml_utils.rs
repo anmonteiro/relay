@@ -297,8 +297,11 @@ pub fn instruction_to_key_value_pair(instruction: &ConverterInstructions) -> (St
         &ConverterInstructions::ConvertUnion(union_record_name) => {
             (String::from("u"), union_record_name.to_string())
         }
-        &ConverterInstructions::ConvertCustomField(converter_name) => {
+        &ConverterInstructions::ConvertCustomField(converter_name, false) => {
             (String::from("c"), converter_name.to_string())
+        }
+        &ConverterInstructions::ConvertCustomField(converter_name, true) => {
+            (String::from("ca"), converter_name.to_string())
         }
         &ConverterInstructions::RootObject(object_name) => {
             (String::from("r"), object_name.to_string())
@@ -397,11 +400,28 @@ pub fn print_constant_value(
                 arguments
                     .iter()
                     .map(|arg| {
-                        format!(
-                            "{} = {}",
-                            arg.name.item,
-                            print_constant_value(&arg.value.item, print_as_optional, wrap_in_arg)
-                        )
+                        if false // wrap_in_arg
+                        {
+                            format!(
+                                "\"{}\" = {}",
+                                arg.name.item,
+                                print_constant_value(
+                                    &arg.value.item,
+                                    print_as_optional,
+                                    wrap_in_arg
+                                )
+                            )
+                        } else {
+                            format!(
+                                "{} = {}",
+                                arg.name.item,
+                                print_constant_value(
+                                    &arg.value.item,
+                                    print_as_optional,
+                                    wrap_in_arg
+                                )
+                            )
+                        }
                     })
                     .join("; "),
             ),
@@ -973,6 +993,7 @@ pub fn ast_to_string<'a>(
     state: &'a mut OCamlPrinter,
     context: &Context,
     needs_conversion: &mut Option<AstToStringNeedsConversion>,
+    found_in_array: bool,
 ) -> String {
     match &ast {
         AST::Boolean => String::from("bool"),
@@ -982,12 +1003,12 @@ pub fn ast_to_string<'a>(
         }
         AST::ReadOnlyArray(inner_type) => format!(
             "{} array",
-            ast_to_string(inner_type.as_ref(), state, &context, needs_conversion)
+            ast_to_string(inner_type.as_ref(), state, &context, needs_conversion, true)
         ),
-        AST::NonNullable(ast) => ast_to_string(ast, state, &context, needs_conversion),
+        AST::NonNullable(ast) => ast_to_string(ast, state, &context, needs_conversion, false),
         AST::Nullable(ast) => format!(
             "{} option",
-            ast_to_string(ast, state, &context, needs_conversion)
+            ast_to_string(ast, state, &context, needs_conversion, false)
         ),
         AST::RawType(identifier) | AST::Identifier(identifier) => {
             match classify_identifier(state, identifier, &context) {
@@ -1004,7 +1025,7 @@ pub fn ast_to_string<'a>(
                     match classify_ocaml_value_string(&identifier) {
                         MelangeCustomTypeValue::Module => {
                             *needs_conversion =
-                                Some(AstToStringNeedsConversion::CustomScalar(identifier.clone()));
+                                Some(AstToStringNeedsConversion::CustomScalar(identifier.clone(), found_in_array));
                             format!("{}.t", identifier)
                         }
                         MelangeCustomTypeValue::Type => identifier.to_string(),

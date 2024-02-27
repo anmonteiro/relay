@@ -374,6 +374,7 @@ fn ast_to_prop_value(
                                 at_path: new_at_path,
                                 instruction: ConverterInstructions::ConvertCustomField(
                                     identifier.to_string(),
+                                    found_in_array
                                 ),
                             })
                         }
@@ -1114,7 +1115,7 @@ fn write_converter_map(
                 )
                 .unwrap();
             }
-            ConverterInstructions::ConvertCustomField(custom_field_name) => {
+            ConverterInstructions::ConvertCustomField(custom_field_name, _) => {
                 if !has_instructions {
                     has_instructions = true;
                     writeln!(str, "let o = Js.Dict.empty () in ").unwrap();
@@ -1241,7 +1242,7 @@ fn write_internal_assets(
         .into_iter()
         .filter(|instruction_container| {
             match &instruction_container.instruction {
-                ConverterInstructions::ConvertCustomField(field_name) => {
+                ConverterInstructions::ConvertCustomField(field_name, _) => {
                     // Try and infer what type of OCaml value this is
                     match classify_ocaml_value_string(&field_name) {
                         MelangeCustomTypeValue::Type => false,
@@ -2986,6 +2987,7 @@ impl Writer for OCamlPrinter {
                                         self,
                                         &Context::NotRelevant,
                                         &mut needs_conversion,
+                                        false
                                     ),
                                     needs_conversion: needs_conversion.clone(),
                                 });
@@ -3012,7 +3014,7 @@ impl Writer for OCamlPrinter {
                                             ),
                                         });
                                     }
-                                    Some(AstToStringNeedsConversion::CustomScalar(scalar_name)) => {
+                                    Some(AstToStringNeedsConversion::CustomScalar(scalar_name, found_in_array)) => {
                                         self.conversion_instructions.push(InstructionContainer {
                                             context: Context::Variables,
                                             at_path: vec![
@@ -3021,6 +3023,7 @@ impl Writer for OCamlPrinter {
                                             ],
                                             instruction: ConverterInstructions::ConvertCustomField(
                                                 scalar_name.clone(),
+                                                found_in_array.clone()
                                             ),
                                         });
                                     }
