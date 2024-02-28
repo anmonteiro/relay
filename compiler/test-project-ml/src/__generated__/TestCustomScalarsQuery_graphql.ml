@@ -7,6 +7,9 @@ module Types = struct
   type response_member_User = {
     __typename: [ | `User] [@live];
     createdAt: SomeModule.Datetime.t;
+    datetimes: SomeModule.Datetime.t option array option;
+    onlineStatus: RelaySchemaAssets_graphql.enum_OnlineStatus option;
+    onlineStatus2: RelaySchemaAssets_graphql.enum_OnlineStatus option;
   }
   and response_member = [
     | `User of response_member_User
@@ -18,7 +21,10 @@ module Types = struct
   }
   and response_loggedInUser = {
     createdAt: SomeModule.Datetime.t;
+    datetimes: SomeModule.Datetime.t option array option;
     friends: response_loggedInUser_friends array;
+    onlineStatus: RelaySchemaAssets_graphql.enum_OnlineStatus option;
+    onlineStatus2: RelaySchemaAssets_graphql.enum_OnlineStatus option;
   }
   type response = {
     loggedInUser: response_loggedInUser;
@@ -27,15 +33,19 @@ module Types = struct
   type rawResponse = response
   type variables = {
     beforeDate: SomeModule.Datetime.t option;
+    datetimes: SomeModule.Datetime.t array option;
   }
   type refetchVariables = {
     beforeDate: SomeModule.Datetime.t option option;
+    datetimes: SomeModule.Datetime.t array option option;
   }
   let makeRefetchVariables 
     ?beforeDate 
+    ?datetimes 
     ()
   : refetchVariables = {
-    beforeDate= beforeDate
+    beforeDate= beforeDate;
+    datetimes= datetimes
   }
 
 end
@@ -52,9 +62,12 @@ let wrap_response_member: [
 ] -> < __typename: string > Js.t = function 
   | `User(v) -> Obj.magic v
   | `UnselectedUnionMember v -> [%mel.obj { __typename = v }]
+
+type queryRef
+
 module Internal = struct
   let variablesConverter: string Js.Dict.t Js.Dict.t Js.Dict.t = [%mel.raw 
-    {json|{"__root":{"beforeDate":{"c":"SomeModule.Datetime"}}}|json}
+    {json|{"__root":{"datetimes":{"ca":"SomeModule.Datetime"},"beforeDate":{"c":"SomeModule.Datetime"}}}|json}
   ]
   let variablesConverterMap = let o = Js.Dict.empty () in 
     Js.Dict.set o "SomeModule.Datetime" (Obj.magic SomeModule.Datetime.serialize : unit);
@@ -65,7 +78,7 @@ module Internal = struct
     Js.undefined
     type wrapResponseRaw
   let wrapResponseConverter: string Js.Dict.t Js.Dict.t Js.Dict.t = [%mel.raw 
-    {json|{"__root":{"member_User_createdAt":{"c":"SomeModule.Datetime"},"member":{"u":"response_member"},"loggedInUser_friends_createdAt":{"c":"SomeModule.Datetime"},"loggedInUser_createdAt":{"c":"SomeModule.Datetime"}}}|json}
+    {json|{"__root":{"member_User_datetimes":{"ca":"SomeModule.Datetime"},"member_User_createdAt":{"c":"SomeModule.Datetime"},"member":{"u":"response_member"},"loggedInUser_friends_createdAt":{"c":"SomeModule.Datetime"},"loggedInUser_datetimes":{"ca":"SomeModule.Datetime"},"loggedInUser_createdAt":{"c":"SomeModule.Datetime"}}}|json}
   ]
   let wrapResponseConverterMap = let o = Js.Dict.empty () in 
     Js.Dict.set o "SomeModule.Datetime" (Obj.magic SomeModule.Datetime.serialize : unit);
@@ -77,7 +90,7 @@ module Internal = struct
     Js.null
     type responseRaw
   let responseConverter: string Js.Dict.t Js.Dict.t Js.Dict.t = [%mel.raw 
-    {json|{"__root":{"member_User_createdAt":{"c":"SomeModule.Datetime"},"member":{"u":"response_member"},"loggedInUser_friends_createdAt":{"c":"SomeModule.Datetime"},"loggedInUser_createdAt":{"c":"SomeModule.Datetime"}}}|json}
+    {json|{"__root":{"member_User_datetimes":{"ca":"SomeModule.Datetime"},"member_User_createdAt":{"c":"SomeModule.Datetime"},"member":{"u":"response_member"},"loggedInUser_friends_createdAt":{"c":"SomeModule.Datetime"},"loggedInUser_datetimes":{"ca":"SomeModule.Datetime"},"loggedInUser_createdAt":{"c":"SomeModule.Datetime"}}}|json}
   ]
   let responseConverterMap = let o = Js.Dict.empty () in 
     Js.Dict.set o "SomeModule.Datetime" (Obj.magic SomeModule.Datetime.parse : unit);
@@ -91,14 +104,23 @@ module Internal = struct
   let convertWrapRawResponse = convertWrapResponse
   type rawResponseRaw = responseRaw
   let convertRawResponse = convertResponse
+  type 'response rawPreloadToken = {source: 'response Melange_relay.Observable.t Js.Nullable.t}
+  external tokenToRaw: queryRef -> Types.response rawPreloadToken = "%identity"
 end
-
-type queryRef
-
 module Utils = struct
   [@@@ocaml.warning "-33"]
   open Types
-  external makeVariables:     ?beforeDate: SomeModule.Datetime.t-> 
+  external onlineStatus_toString: RelaySchemaAssets_graphql.enum_OnlineStatus -> string = "%identity"
+  external onlineStatus_input_toString: RelaySchemaAssets_graphql.enum_OnlineStatus_input -> string = "%identity"
+  let onlineStatus_decode (enum: RelaySchemaAssets_graphql.enum_OnlineStatus): RelaySchemaAssets_graphql.enum_OnlineStatus_input option =
+    (match enum with
+      | #RelaySchemaAssets_graphql.enum_OnlineStatus_input as valid -> Some(valid)
+      | _ -> None
+    )
+    let onlineStatus_fromString (str: string): RelaySchemaAssets_graphql.enum_OnlineStatus_input option =
+    onlineStatus_decode (Obj.magic str)
+    external makeVariables:     ?beforeDate: SomeModule.Datetime.t-> 
+    ?datetimes: SomeModule.Datetime.t array-> 
     unit ->
    variables = "" [@@mel.obj]
 
@@ -115,6 +137,11 @@ var v0 = [
     "defaultValue": null,
     "kind": "LocalArgument",
     "name": "beforeDate"
+  },
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "datetimes"
   }
 ],
 v1 = {
@@ -131,30 +158,67 @@ v2 = [
     "variableName": "beforeDate"
   }
 ],
-v3 = [
-  (v1/*: any*/)
-],
-v4 = [
+v3 = {
+  "alias": null,
+  "args": [
+    {
+      "kind": "Literal",
+      "name": "dateTimes",
+      "value": [
+        "2024-01-17T00:00:00.000Z"
+      ]
+    }
+  ],
+  "kind": "ScalarField",
+  "name": "onlineStatus",
+  "storageKey": "onlineStatus(dateTimes:[\"2024-01-17T00:00:00.000Z\"])"
+},
+v4 = {
+  "alias": "onlineStatus2",
+  "args": [
+    {
+      "kind": "Variable",
+      "name": "dateTimes",
+      "variableName": "datetimes"
+    }
+  ],
+  "kind": "ScalarField",
+  "name": "onlineStatus",
+  "storageKey": null
+},
+v5 = {
+  "alias": null,
+  "args": null,
+  "kind": "ScalarField",
+  "name": "datetimes",
+  "storageKey": null
+},
+v6 = [
   {
     "kind": "Literal",
     "name": "id",
     "value": "user-1"
   }
 ],
-v5 = {
+v7 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
   "name": "__typename",
   "storageKey": null
 },
-v6 = {
+v8 = {
   "kind": "InlineFragment",
-  "selections": (v3/*: any*/),
+  "selections": [
+    (v1/*: any*/),
+    (v3/*: any*/),
+    (v4/*: any*/),
+    (v5/*: any*/)
+  ],
   "type": "User",
   "abstractKey": null
 },
-v7 = {
+v9 = {
   "alias": null,
   "args": null,
   "kind": "ScalarField",
@@ -184,22 +248,27 @@ return {
             "kind": "LinkedField",
             "name": "friends",
             "plural": true,
-            "selections": (v3/*: any*/),
+            "selections": [
+              (v1/*: any*/)
+            ],
             "storageKey": null
-          }
+          },
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v5/*: any*/)
         ],
         "storageKey": null
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "member",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
-          (v6/*: any*/)
+          (v7/*: any*/),
+          (v8/*: any*/)
         ],
         "storageKey": "member(id:\"user-1\")"
       }
@@ -231,28 +300,31 @@ return {
             "plural": true,
             "selections": [
               (v1/*: any*/),
-              (v7/*: any*/)
+              (v9/*: any*/)
             ],
             "storageKey": null
           },
-          (v7/*: any*/)
+          (v3/*: any*/),
+          (v4/*: any*/),
+          (v5/*: any*/),
+          (v9/*: any*/)
         ],
         "storageKey": null
       },
       {
         "alias": null,
-        "args": (v4/*: any*/),
+        "args": (v6/*: any*/),
         "concreteType": null,
         "kind": "LinkedField",
         "name": "member",
         "plural": false,
         "selections": [
-          (v5/*: any*/),
-          (v6/*: any*/),
+          (v7/*: any*/),
+          (v8/*: any*/),
           {
             "kind": "InlineFragment",
             "selections": [
-              (v7/*: any*/)
+              (v9/*: any*/)
             ],
             "type": "Node",
             "abstractKey": "__isNode"
@@ -263,21 +335,52 @@ return {
     ]
   },
   "params": {
-    "cacheID": "43f7703aae48d15853367c45e13db4eb",
+    "cacheID": "8b5300555c66b30ce2d4cf8c838f99a6",
     "id": null,
     "metadata": {},
     "name": "TestCustomScalarsQuery",
     "operationKind": "query",
-    "text": "query TestCustomScalarsQuery(\n  $beforeDate: Datetime\n) {\n  loggedInUser {\n    createdAt\n    friends(beforeDate: $beforeDate) {\n      createdAt\n      id\n    }\n    id\n  }\n  member(id: \"user-1\") {\n    __typename\n    ... on User {\n      createdAt\n    }\n    ... on Node {\n      __isNode: __typename\n      __typename\n      id\n    }\n  }\n}\n"
+    "text": "query TestCustomScalarsQuery(\n  $beforeDate: Datetime\n  $datetimes: [Datetime!]\n) {\n  loggedInUser {\n    createdAt\n    friends(beforeDate: $beforeDate) {\n      createdAt\n      id\n    }\n    onlineStatus(dateTimes: [\"2024-01-17T00:00:00.000Z\"])\n    onlineStatus2: onlineStatus(dateTimes: $datetimes)\n    datetimes\n    id\n  }\n  member(id: \"user-1\") {\n    __typename\n    ... on User {\n      createdAt\n      onlineStatus(dateTimes: [\"2024-01-17T00:00:00.000Z\"])\n      onlineStatus2: onlineStatus(dateTimes: $datetimes)\n      datetimes\n    }\n    ... on Node {\n      __isNode: __typename\n      __typename\n      id\n    }\n  }\n}\n"
   }
 };
 })() |json}]
 
-include Melange_relay.MakeLoadQuery(struct
-            type variables = Types.variables
-            type loadedQueryRef = queryRef
-            type response = Types.response
-            type node = relayOperationNode
-            let query = node
-            let convertVariables = Internal.convertVariables
-        end)
+let (load :
+    environment:Melange_relay.Environment.t
+    -> variables:Types.variables
+    -> ?fetchPolicy:Melange_relay.FetchPolicy.t
+    -> ?fetchKey:string
+    -> ?networkCacheConfig:Melange_relay.cacheConfig
+    -> unit
+    -> queryRef)
+=
+fun ~environment ~variables ?fetchPolicy ?fetchKey ?networkCacheConfig () ->
+  Melange_relay.loadQuery
+    environment
+    node
+    (variables |. Internal.convertVariables)
+    { fetchKey
+    ; fetchPolicy = fetchPolicy |. Melange_relay.FetchPolicy.map
+    ; networkCacheConfig
+    }
+
+type nonrec 'response rawPreloadToken =
+  { source : 'response Melange_relay.Observable.t Js.Nullable.t }
+
+let queryRefToObservable token =
+  let raw = token |. Internal.tokenToRaw in
+  raw.source |. Js.Nullable.toOption
+
+let queryRefToPromise token =
+  Js.Promise.make (fun ~resolve ~reject:_ ->
+      match token |. queryRefToObservable with
+      | None -> resolve (Error ()) [@u]
+      | Some o ->
+        let open Melange_relay.Observable in
+        let (_ : subscription) =
+          o
+          |. subscribe
+               (makeObserver ~complete:(fun () -> (resolve (Ok ()) [@u])) ())
+        in
+        ())
+

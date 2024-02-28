@@ -361,7 +361,7 @@ pub trait Writer: Write {
 
     fn write(&mut self, ast: &AST) -> FmtResult;
 
-    fn write_local_type(&mut self, name: &str, ast: &AST) -> FmtResult;
+    fn write_type_assertion(&mut self, name: &str, ast: &AST) -> FmtResult;
 
     fn write_export_type(&mut self, name: &str, ast: &AST) -> FmtResult;
 
@@ -448,6 +448,7 @@ pub(crate) fn new_writer_from_config(
                 &config,
             ),
             typegen_definition,
+            typegen_opts.typegen_options.is_preloadable_thin_file
         )),
         TypegenLanguage::JavaScript => Box::new(JavaScriptPrinter::default()),
         TypegenLanguage::Flow => Box::new(FlowPrinter::new()),

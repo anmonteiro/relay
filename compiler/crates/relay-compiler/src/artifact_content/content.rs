@@ -10,17 +10,17 @@ use std::fmt::Result as FmtResult;
 use std::fmt::Write;
 use std::sync::Arc;
 
+use common::ocaml_utils::get_load_fn_code;
+use common::ocaml_utils::get_load_query_code;
 use common::NamedItem;
 use graphql_ir::FragmentDefinition;
 use graphql_ir::FragmentDefinitionName;
 use graphql_ir::OperationDefinition;
-use intern::Lookup;
+use intern::string_key::Intern;
 use relay_codegen::build_request_params;
 use relay_codegen::Printer;
 use relay_codegen::QueryID;
-use relay_codegen::TopLevelStatement;
 use relay_codegen::TopLevelStatements;
-use relay_codegen::CODEGEN_CONSTANTS;
 use relay_transforms::is_operation_preloadable;
 use relay_transforms::RelayDataDrivenDependencyMetadata;
 use relay_transforms::ASSIGNABLE_DIRECTIVE;
@@ -222,6 +222,8 @@ pub fn generate_updatable_query(
                 schema,
                 project_config,
                 fragment_locations,
+                None, // TODO: Add/investigrate support for provided variables in updatable queries
+                None,
             )
         )?;
     }
@@ -376,6 +378,8 @@ pub fn generate_operation(
     )?;
 
     if !skip_types {
+        let maybe_provided_variables =
+            printer.print_provided_variables(schema, normalization_operation);
         write!(
             section,
             "{}",
@@ -385,6 +389,8 @@ pub fn generate_operation(
                 schema,
                 project_config,
                 fragment_locations,
+                maybe_provided_variables,
+                None,
             )
         )?;
     }
@@ -395,27 +401,8 @@ pub fn generate_operation(
     content_sections.push(ContentSection::Generic(section));
     // -- End Types Section --
 
-    // -- Begin Top Level Statements Section --
-    let mut section = GenericSection::default();
     let mut top_level_statements = Default::default();
-    if let Some(provided_variables) =
-        printer.print_provided_variables(schema, normalization_operation, &mut top_level_statements)
-    {
-        let mut provided_variable_text = String::new();
-        write_variable_value_with_type(
-            &project_config.typegen_config.language,
-            &mut provided_variable_text,
-            CODEGEN_CONSTANTS.provided_variables_definition.lookup(),
-            relay_typegen::PROVIDED_VARIABLE_TYPE,
-            &provided_variables,
-        )
-        .unwrap();
-        top_level_statements.insert(
-            CODEGEN_CONSTANTS.provided_variables_definition.to_string(),
-            TopLevelStatement::VariableDefinition(provided_variable_text),
-        );
-    }
-
+    // -- Begin Query Node Section --
     let request = printer.print_request(
         schema,
         normalization_operation,
@@ -424,11 +411,12 @@ pub fn generate_operation(
         &mut top_level_statements,
     );
 
+    // -- Begin Top Level Statements Section --
+    let mut section: GenericSection = GenericSection::default();
     write!(section, "{}", &top_level_statements)?;
     content_sections.push(ContentSection::Generic(section));
     // -- End Top Level Statements Section --
 
-    // -- Begin Query Node Section --
     let mut section = GenericSection::default();
     write_variable_value_with_type(
         &project_config.typegen_config.language,
@@ -1081,6 +1069,13 @@ pub fn generate_operation_ocaml(
     let mut request_parameters = build_request_params(normalization_operation);
     if id_and_text_hash.is_some() {
         request_parameters.id = id_and_text_hash;
+        if project_config
+            .persist
+            .as_ref()
+            .map_or(false, |config| config.include_query_text())
+        {
+            request_parameters.text = text.clone();
+        }
     } else {
         request_parameters.text = text.clone();
     };
@@ -1117,6 +1112,9 @@ pub fn generate_operation_ocaml(
         _ => (),
     };
 
+    let mut raw_section = GenericSection::default();
+    writeln!(raw_section, "[%%mel.raw {{|").unwrap();
+    content_sections.push(ContentSection::Generic(raw_section));
     // -- Begin Metadata Annotations Section --
     let mut section = CommentAnnotationsSection::default();
     if let Some(QueryID::Persisted { id, .. }) = &request_parameters.id {
@@ -1135,29 +1133,35 @@ pub fn generate_operation_ocaml(
         write_data_driven_dependency_annotation(&mut section, data_driven_dependency_metadata)?;
     }
     content_sections.push(ContentSection::CommentAnnotations(section));
+    let mut raw_section = GenericSection::default();
+    writeln!(raw_section, "|}}]").unwrap();
+    content_sections.push(ContentSection::Generic(raw_section));
     // -- End Metadata Annotations Section --
 
     let mut section = GenericSection::default();
 
-    writeln!(
+    let maybe_provided_variables =
+        printer.print_provided_variables(schema, normalization_operation);
+    write!(
         section,
         "{}",
-        relay_typegen::generate_operation_type_exports_section(
+        generate_operation_type_exports_section(
             typegen_operation,
             normalization_operation,
             schema,
             project_config,
             fragment_locations,
+            maybe_provided_variables,
+            Some(false),
         )
-    )
-    .unwrap();
+    )?;
 
     // Print operation node types
     match project_config.typegen_config.language {
         TypegenLanguage::OCaml => {
             writeln!(
                 section,
-                "type relayOperationNode\ntype operationType = relayOperationNode Melange_relay.{}Node\n\n",
+                "\ntype relayOperationNode\ntype operationType = relayOperationNode Melange_relay.{}Node\n\n",
                 match typegen_operation.kind {
                     graphql_syntax::OperationKind::Query => {
                         "query"
@@ -1181,17 +1185,6 @@ pub fn generate_operation_ocaml(
     // what we want. Printing of the actual types and values involved in
     // provided variables is handled inside of the OCaml typegen printer.
     let provided_variables = find_provided_variables(&normalization_operation);
-    if provided_variables.is_some() {
-        // This needs to be inserted even though we're not actually printing
-        // `top_level_statements`. The compiler checks for the presence of the
-        // `symbol` added below, and changes the provided variables output to
-        // what we want. Sketchy I know, but that's why it's here even though it
-        // doesn't seem to do anything.
-        top_level_statements.insert(
-            CODEGEN_CONSTANTS.provided_variables_definition.to_string(),
-            TopLevelStatement::VariableDefinition(String::from("")),
-        );
-    }
 
     // Print node type
     match project_config.typegen_config.language {
@@ -1217,21 +1210,10 @@ pub fn generate_operation_ocaml(
                 section,
                 "{}",
                 match typegen_operation.kind {
-                    graphql_syntax::OperationKind::Query => {
-                        // TODO: Replace functor at some point
-                        "include Melange_relay.MakeLoadQuery(struct
-            type variables = Types.variables
-            type loadedQueryRef = queryRef
-            type response = Types.response
-            type node = relayOperationNode
-            let query = node
-            let convertVariables = Internal.convertVariables
-        end)"
-                    }
+                    graphql_syntax::OperationKind::Query =>
+                        get_load_query_code(!is_operation_preloadable(normalization_operation)),
                     graphql_syntax::OperationKind::Mutation
-                    | graphql_syntax::OperationKind::Subscription => {
-                        ""
-                    }
+                    | graphql_syntax::OperationKind::Subscription => "".intern(),
                 }
             )
             .unwrap();
@@ -1496,4 +1478,91 @@ pub fn generate_resolvers_schema_module_content(
     // -- End Exports Section --
 
     content_sections.into_signed_bytes()
+}
+
+pub fn generate_preloadable_query_parameters_ocaml(
+    _config: &Config,
+    project_config: &ProjectConfig,
+    printer: &mut Printer<'_>,
+    schema: &SDLSchema,
+    normalization_operation: &OperationDefinition,
+    typegen_operation: &OperationDefinition,
+    query_id: &QueryID,
+    fragment_locations: &FragmentLocations,
+) -> Result<Vec<u8>, FmtError> {
+    let mut request_parameters = build_request_params(normalization_operation);
+    let cloned_query_id = Some(query_id.clone());
+    request_parameters.id = &cloned_query_id;
+
+    let has_provided_variables = find_provided_variables(&normalization_operation).is_some();
+
+    let mut content_sections = ContentSections::default();
+
+    match super::ocaml_relay_utils::ocaml_get_source_loc_text(
+        &normalization_operation.name.location.source_location(),
+    ) {
+        None => (),
+        Some(source_loc_str) => {
+            let mut section = GenericSection::default();
+            writeln!(section, "{}", source_loc_str).unwrap();
+            write!(
+                section,
+                "{}",
+                super::ocaml_relay_utils::ocaml_get_comments_for_generated()
+            )
+            .unwrap();
+            content_sections.push(ContentSection::Generic(section))
+        }
+    };
+
+    let mut section = GenericSection::default();
+    let name = normalization_operation.name.item.0;
+
+    writeln!(section, "type queryRef = {}_graphql.queryRef", name).unwrap();
+
+    let maybe_provided_variables =
+        printer.print_provided_variables(schema, normalization_operation);
+
+    write!(
+        section,
+        "{}",
+        generate_operation_type_exports_section(
+            typegen_operation,
+            normalization_operation,
+            schema,
+            project_config,
+            fragment_locations,
+            maybe_provided_variables,
+            Some(true),
+        )
+    )?;
+
+    // Print operation node types
+    writeln!(
+        section,
+        "\ntype relayOperationNode\ntype operationType = relayOperationNode Melange_relay.queryNode\n\n",
+    )
+    .unwrap();
+
+    // Print node type
+    writeln!(
+        section,
+        "{}",
+        super::ocaml_relay_utils::ocaml_make_operation_type_and_node_text(
+            &printer.print_preloadable_request(
+                schema,
+                request_parameters,
+                normalization_operation,
+                &mut Default::default(),
+            ),
+            has_provided_variables
+        )
+    )
+    .unwrap();
+
+    writeln!(section, "{}", get_load_fn_code()).unwrap();
+
+    content_sections.push(ContentSection::Generic(section));
+
+    content_sections.into_bytes()
 }

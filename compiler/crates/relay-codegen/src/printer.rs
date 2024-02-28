@@ -97,14 +97,12 @@ pub fn print_request_params(
 ) -> String {
     let mut request_parameters = build_request_params(operation);
     request_parameters.id = query_id;
-
-    let mut builder = AstBuilder::default();
+    let mut builder: AstBuilder = AstBuilder::default();
     let request_parameters_ast_key = build_request_params_ast_key(
         schema,
         request_parameters,
         &mut builder,
         operation,
-        top_level_statements,
         operation.name.map(|x| x.0),
         project_config,
     );
@@ -112,12 +110,21 @@ pub fn print_request_params(
     printer.print(request_parameters_ast_key, false)
 }
 
+
 pub fn print_resolvers_schema(
     schema: &SDLSchema,
     project_config: &ProjectConfig,
     top_level_statements: &mut TopLevelStatements,
 ) -> String {
     Printer::without_dedupe(project_config).print_resolvers_schema(schema, top_level_statements)
+}
+
+pub fn print_provided_variables(
+    schema: &SDLSchema,
+    operation: &OperationDefinition,
+    project_config: &ProjectConfig,
+) -> Option<String> {
+    Printer::without_dedupe(project_config).print_provided_variables(schema, operation)
 }
 
 pub struct Printer<'p> {
@@ -147,17 +154,23 @@ impl<'p> Printer<'p> {
         &mut self,
         schema: &SDLSchema,
         operation: &OperationDefinition,
-        top_level_statements: &mut TopLevelStatements,
     ) -> Option<String> {
-        let key = build_provided_variables(
+        // We do not expect the generate of provided variables object
+        // to mutate any top-level statements
+        let mut top_level_statements = Default::default();
+        let provided_variables = build_provided_variables(
             schema,
             &mut self.builder,
             operation,
             operation.name.map(|x| x.0),
             self.project_config,
         )?;
-        let printer = JSONPrinter::new(&self.builder, self.project_config, top_level_statements);
-        Some(printer.print(key, self.dedupe))
+        let printer = JSONPrinter::new(
+            &self.builder,
+            self.project_config,
+            &mut top_level_statements,
+        );
+        Some(printer.print(provided_variables, self.dedupe))
     }
 
     pub fn print_updatable_query(
@@ -200,11 +213,9 @@ impl<'p> Printer<'p> {
             request_parameters,
             &mut self.builder,
             operation,
-            top_level_statements,
             operation.name.map(|x| x.0),
             self.project_config,
         );
-
         let key = build_request(
             schema,
             &mut self.builder,
@@ -230,7 +241,6 @@ impl<'p> Printer<'p> {
             request_parameters,
             &mut self.builder,
             operation,
-            top_level_statements,
             operation.name.map(|x| x.0),
             self.project_config,
         );
@@ -285,7 +295,6 @@ impl<'p> Printer<'p> {
             request_parameters,
             &mut self.builder,
             operation,
-            top_level_statements,
             operation.name.map(|x| x.0),
             self.project_config,
         );

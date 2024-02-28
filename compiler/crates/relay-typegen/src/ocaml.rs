@@ -103,6 +103,8 @@ pub struct OCamlPrinter {
 
     // Whether we have provided variables.
     pub provided_variables: Option<Vec<ProvidedVariable>>,
+
+    pub is_preloadable_thin_file: Option<bool>,
 }
 
 impl Write for OCamlPrinter {
@@ -374,6 +376,7 @@ fn ast_to_prop_value(
                                 at_path: new_at_path,
                                 instruction: ConverterInstructions::ConvertCustomField(
                                     identifier.to_string(),
+                                    found_in_array
                                 ),
                             })
                         }
@@ -1114,7 +1117,7 @@ fn write_converter_map(
                 )
                 .unwrap();
             }
-            ConverterInstructions::ConvertCustomField(custom_field_name) => {
+            ConverterInstructions::ConvertCustomField(custom_field_name, _) => {
                 if !has_instructions {
                     has_instructions = true;
                     writeln!(str, "let o = Js.Dict.empty () in ").unwrap();
@@ -1241,7 +1244,7 @@ fn write_internal_assets(
         .into_iter()
         .filter(|instruction_container| {
             match &instruction_container.instruction {
-                ConverterInstructions::ConvertCustomField(field_name) => {
+                ConverterInstructions::ConvertCustomField(field_name, _) => {
                     // Try and infer what type of OCaml value this is
                     match classify_ocaml_value_string(&field_name) {
                         MelangeCustomTypeValue::Type => false,
@@ -1897,6 +1900,12 @@ fn context_from_obj_path(at_path: &Vec<String>) -> Context {
     }
 }
 
+enum PreloadableMode {
+    Off,
+    FullFile,
+    ThinFile
+}
+
 impl Writer for OCamlPrinter {
     // This is what does the actual printing of types. It does that by working
     // its way through the state produced by "write_export_type", which turns
@@ -1905,6 +1914,12 @@ impl Writer for OCamlPrinter {
     fn into_string(self: Box<Self>) -> String {
         let mut generated_types = String::new();
         let mut indentation: usize = 0;
+
+        let preloadable_mode = match self.is_preloadable_thin_file {
+            Some(true) => PreloadableMode::ThinFile,
+            Some(false) => PreloadableMode::FullFile,
+            None => PreloadableMode::Off
+        };
 
         // Print the Types module. This will contain most of the type
         // defintions.
@@ -1942,167 +1957,172 @@ impl Writer for OCamlPrinter {
                 }
             });
 
-        // Print object types that originate from unions. This is because these
-        // definitions need to come before the actual union definitions, which
-        // use them.
-        let objects_from_unions: Vec<&Object> = self
-            .objects
-            .iter()
-            .unique_by(|object| &object.record_name)
-            .filter(|object| object.found_in_union)
-            .collect();
+        match &preloadable_mode {
+            &PreloadableMode::Off | &PreloadableMode::FullFile => {
+                // Print object types that originate from unions. This is because these
+                // definitions need to come before the actual union definitions, which
+                // use them.
+                let objects_from_unions: Vec<&Object> = self
+                    .objects
+                    .iter()
+                    .unique_by(|object| &object.record_name)
+                    .filter(|object| object.found_in_union)
+                    .collect();
 
-        objects_from_unions
-            .iter()
-            .enumerate()
-            .for_each(|(index, object)| {
-                write_object_definition(
-                    &self,
-                    &mut generated_types,
-                    indentation,
-                    &object,
-                    match index {
-                        0 => ObjectPrintMode::StartOfRecursiveChain,
-                        _ => ObjectPrintMode::PartOfRecursiveChain,
-                    },
-                    None,
-                    match &object.at_path[0][..] {
-                        "response" => &Context::Response,
-                        "rawResponse" => &Context::RawResponse,
-                        "fragment" => &Context::Fragment,
-                        _ => &Context::NotRelevant,
-                    },
-                    false,
-                )
-                .unwrap()
-            });
+                objects_from_unions
+                    .iter()
+                    .enumerate()
+                    .for_each(|(index, object)| {
+                        write_object_definition(
+                            &self,
+                            &mut generated_types,
+                            indentation,
+                            &object,
+                            match index {
+                                0 => ObjectPrintMode::StartOfRecursiveChain,
+                                _ => ObjectPrintMode::PartOfRecursiveChain,
+                            },
+                            None,
+                            match &object.at_path[0][..] {
+                                "response" => &Context::Response,
+                                "rawResponse" => &Context::RawResponse,
+                                "fragment" => &Context::Fragment,
+                                _ => &Context::NotRelevant,
+                            },
+                            false,
+                        )
+                        .unwrap()
+                    });
 
-        // Print union definitions.
-        self.unions
-            .iter()
-            .unique_by(|union| &union.record_name)
-            .for_each(|union| {
-                write_union_definition(
-                    &mut generated_types,
-                    indentation,
-                    &union,
-                    None,
-                    if objects_from_unions.len() > 0 {
-                        &ObjectPrintMode::PartOfRecursiveChain
-                    } else {
-                        &ObjectPrintMode::Standalone
-                    },
-                )
-                .unwrap()
-            });
+                // Print union definitions.
+                self.unions
+                    .iter()
+                    .unique_by(|union| &union.record_name)
+                    .for_each(|union| {
+                        write_union_definition(
+                            &mut generated_types,
+                            indentation,
+                            &union,
+                            None,
+                            if objects_from_unions.len() > 0 {
+                                &ObjectPrintMode::PartOfRecursiveChain
+                            } else {
+                                &ObjectPrintMode::Standalone
+                            },
+                        )
+                        .unwrap()
+                    });
 
-        // Print object types that do not originate from unions.
-        self.objects
-            .iter()
-            .unique_by(|object| &object.record_name)
-            .filter(|object| !object.found_in_union)
-            .enumerate()
-            .for_each(|(index, object)| {
-                let context = context_from_obj_path(&object.at_path);
+                // Print object types that do not originate from unions.
+                self.objects
+                    .iter()
+                    .unique_by(|object| &object.record_name)
+                    .filter(|object| !object.found_in_union)
+                    .enumerate()
+                    .for_each(|(index, object)| {
+                        let context = context_from_obj_path(&object.at_path);
 
-                write_object_definition(
-                    &self,
-                    &mut generated_types,
-                    indentation,
-                    &object,
-                    match index {
-                        0 => ObjectPrintMode::StartOfRecursiveChain,
-                        _ => ObjectPrintMode::PartOfRecursiveChain,
-                    },
-                    None,
-                    &context,
-                    false,
-                )
-                .unwrap()
-            });
+                        write_object_definition(
+                            &self,
+                            &mut generated_types,
+                            indentation,
+                            &object,
+                            match index {
+                                0 => ObjectPrintMode::StartOfRecursiveChain,
+                                _ => ObjectPrintMode::PartOfRecursiveChain,
+                            },
+                            None,
+                            &context,
+                            false,
+                        )
+                        .unwrap()
+                    });
 
-        // Print the fragment definition
-        if let Some((nullable, fragment)) = &self.fragment {
-            write_fragment_definition(
-                &self,
-                &mut generated_types,
-                indentation,
-                &fragment,
-                &Context::Fragment,
-                nullable.to_owned(),
-            )
-            .unwrap()
-        }
-
-        // Print the response and raw response (if wanted)
-        if let Some((nullable, response)) = &self.response {
-            if *nullable {
-                write_object_definition(
-                    &self,
-                    &mut generated_types,
-                    indentation,
-                    &response,
-                    ObjectPrintMode::Standalone,
-                    Some(String::from("response_t")),
-                    &Context::Response,
-                    false,
-                )
-                .unwrap();
-                write_indentation(&mut generated_types, indentation).unwrap();
-                writeln!(generated_types, "type response = response_t option").unwrap()
-            } else {
-                write_object_definition(
-                    &self,
-                    &mut generated_types,
-                    indentation,
-                    &response,
-                    ObjectPrintMode::Standalone,
-                    None,
-                    &Context::Response,
-                    false,
-                )
-                .unwrap();
-            }
-
-            // This prints the rawResponse, which the Relay compiler outputs if
-            // you annotate a query with @raw_response_type. The rawResponse is
-            // essentially a type corresponding to exactly what Relay expects
-            // the server to return. This makes it suitable for things like
-            // optimistic responses etc.
-            //
-            // Because of how the typings work, we'll bind `rawResponse` to the
-            // actual `response` if it's not requested. Doing this means the
-            // rest of the MelangeRelay code can always refer to rawResponse
-            // for certain things, even if the rawResponse has been produced or
-            // not. This is necessary since the general MelangeRelay code won't
-            // know whether the rawResponse type is there or not, since it's
-            // conditional and not always there.
-            match &self.raw_response {
-                Some(raw_response) => write_object_definition(
-                    &self,
-                    &mut generated_types,
-                    indentation,
-                    &raw_response,
-                    ObjectPrintMode::Standalone,
-                    None,
-                    &Context::RawResponse,
-                    false,
-                )
-                .unwrap(),
-                None => {
-                    write_indentation(&mut generated_types, indentation).unwrap();
-                    writeln!(
-                        generated_types,
-                        "type rawResponse = {}",
-                        // We point to the full, non nullable type if response
-                        // was nullable, as it might be nullable only because of
-                        // @required, and we don't care about that when using
-                        // the raw response.
-                        if *nullable { "response_t" } else { "response" }
+                // Print the fragment definition
+                if let Some((nullable, fragment)) = &self.fragment {
+                    write_fragment_definition(
+                        &self,
+                        &mut generated_types,
+                        indentation,
+                        &fragment,
+                        &Context::Fragment,
+                        nullable.to_owned(),
                     )
                     .unwrap()
                 }
+
+                // Print the response and raw response (if wanted)
+                if let Some((nullable, response)) = &self.response {
+                    if *nullable {
+                        write_object_definition(
+                            &self,
+                            &mut generated_types,
+                            indentation,
+                            &response,
+                            ObjectPrintMode::Standalone,
+                            Some(String::from("response_t")),
+                            &Context::Response,
+                            false,
+                        )
+                        .unwrap();
+                        write_indentation(&mut generated_types, indentation).unwrap();
+                        writeln!(generated_types, "type response = response_t option").unwrap()
+                    } else {
+                        write_object_definition(
+                            &self,
+                            &mut generated_types,
+                            indentation,
+                            &response,
+                            ObjectPrintMode::Standalone,
+                            None,
+                            &Context::Response,
+                            false,
+                        )
+                        .unwrap();
+                    }
+
+                    // This prints the rawResponse, which the Relay compiler outputs if
+                    // you annotate a query with @raw_response_type. The rawResponse is
+                    // essentially a type corresponding to exactly what Relay expects
+                    // the server to return. This makes it suitable for things like
+                    // optimistic responses etc.
+                    //
+                    // Because of how the typings work, we'll bind `rawResponse` to the
+                    // actual `response` if it's not requested. Doing this means the
+                    // rest of the MelangeRelay code can always refer to rawResponse
+                    // for certain things, even if the rawResponse has been produced or
+                    // not. This is necessary since the general MelangeRelay code won't
+                    // know whether the rawResponse type is there or not, since it's
+                    // conditional and not always there.
+                    match &self.raw_response {
+                        Some(raw_response) => write_object_definition(
+                            &self,
+                            &mut generated_types,
+                            indentation,
+                            &raw_response,
+                            ObjectPrintMode::Standalone,
+                            None,
+                            &Context::RawResponse,
+                            false,
+                        )
+                        .unwrap(),
+                        None => {
+                            write_indentation(&mut generated_types, indentation).unwrap();
+                            writeln!(
+                                generated_types,
+                                "type rawResponse = {}",
+                                // We point to the full, non nullable type if response
+                                // was nullable, as it might be nullable only because of
+                                // @required, and we don't care about that when using
+                                // the raw response.
+                                if *nullable { "response_t" } else { "response" }
+                            )
+                            .unwrap()
+                        }
+                    }
+                }
             }
+            PreloadableMode::ThinFile => (),
         }
 
         // Print the variables
@@ -2121,14 +2141,14 @@ impl Writer for OCamlPrinter {
 
             // And, if we're in a query, print the refetch variables assets as
             // well.
-            match &self.typegen_definition {
-                &DefinitionType::Operation((
+            match (&self.typegen_definition, &preloadable_mode) {
+                (&DefinitionType::Operation((
                     OperationDefinition {
                         kind: OperationKind::Query,
                         ..
                     },
                     _,
-                )) => {
+                )), PreloadableMode::FullFile | PreloadableMode::Off) => {
                     // Refetch variables are the regular variables, but with all
                     // top level fields forced to be optional. Note: This is not
                     // 100% and we'll need to revisit this at a later point in
@@ -2195,13 +2215,33 @@ impl Writer for OCamlPrinter {
             | None => (),
         }
 
-        // Print union converters
-        self.unions
-            .iter()
-            .unique_by(|union| &union.record_name)
-            .for_each(|union| {
-                write_union_converters(&mut generated_types, indentation, &union).unwrap()
-            });
+        match &preloadable_mode {
+            &PreloadableMode::ThinFile => (),
+            _ => {
+                // Print union converters
+                self.unions
+                    .iter()
+                    .unique_by(|union| &union.record_name)
+                    .for_each(|union| {
+                        write_union_converters(&mut generated_types, indentation, &union).unwrap()
+                    });
+
+                match &self.typegen_definition {
+                    DefinitionType::Operation((operation_definition, _)) => match operation_definition.kind {
+                        OperationKind::Query => {
+                            write_indentation(&mut generated_types, indentation).unwrap();
+                            writeln!(generated_types, "").unwrap();
+                            write_indentation(&mut generated_types, indentation).unwrap();
+                            writeln!(generated_types, "type queryRef").unwrap();
+                            write_indentation(&mut generated_types, indentation).unwrap();
+                            writeln!(generated_types, "").unwrap();
+                        }
+                        OperationKind::Mutation | OperationKind::Subscription => (),
+                    },
+                    _ => ()
+                }
+            }
+        }
 
         // Print internal module. This module holds a bunch of things needed for
         // conversions etc, but that we want to keep in its own module. Mostly
@@ -2261,8 +2301,9 @@ impl Writer for OCamlPrinter {
         // JS when we for example pass variables as we load queries, produce
         // optimistic responses, or similar. In short, any time a value goes
         // back into Relay from OCaml.
-        match (&self.response, &self.typegen_definition) {
-            (Some(_), DefinitionType::Operation((op, _))) => {
+        match (&preloadable_mode, &self.response, &self.typegen_definition) {
+            (PreloadableMode::ThinFile, _, _) => (),
+            (_, Some(_), DefinitionType::Operation((op, _))) => {
                 match &op.kind {
                     OperationKind::Query | OperationKind::Mutation => {
                         write_internal_assets(
@@ -2295,8 +2336,9 @@ impl Writer for OCamlPrinter {
             _ => (),
         };
 
-        match (&self.response, &self.raw_response, &self.typegen_definition) {
-            (Some(_), Some(_), DefinitionType::Operation((op, _))) => {
+        match (&preloadable_mode, &self.response, &self.raw_response, &self.typegen_definition) {
+            (PreloadableMode::ThinFile, _, _, _) => (),
+            (_, Some(_), Some(_), DefinitionType::Operation((op, _))) => {
                 match &op.kind {
                     OperationKind::Query | OperationKind::Mutation => {
                         write_internal_assets(
@@ -2326,7 +2368,7 @@ impl Writer for OCamlPrinter {
                 )
                 .unwrap();
             }
-            (Some(_), None, DefinitionType::Operation((op, _))) => {
+            (_, Some(_), None, DefinitionType::Operation((op, _))) => {
                 match &op.kind {
                     OperationKind::Query | OperationKind::Mutation => {
                         write_indentation(&mut generated_types, indentation).unwrap();
@@ -2348,6 +2390,20 @@ impl Writer for OCamlPrinter {
 
                 write_indentation(&mut generated_types, indentation).unwrap();
                 writeln!(generated_types, "let convertRawResponse = convertResponse").unwrap();
+            }
+            _ => (),
+        };
+
+        match (&preloadable_mode, &self.typegen_definition) {
+            (&PreloadableMode::ThinFile, _) => (),
+            (_, DefinitionType::Operation((op, _))) => {
+                match &op.kind {
+                    OperationKind::Query => {
+                        writeln!(generated_types, "  type 'response rawPreloadToken = {{source: 'response Melange_relay.Observable.t Js.Nullable.t}}").unwrap();
+                        writeln!(generated_types, "  external tokenToRaw: queryRef -> Types.response rawPreloadToken = \"%identity\"").unwrap();
+                    }
+                    _ => (),
+                }
             }
             _ => (),
         };
@@ -2377,26 +2433,15 @@ impl Writer for OCamlPrinter {
                 )
                 .unwrap();
             }
-            DefinitionType::Operation((operation_definition, _)) => match operation_definition.kind
-            {
-                OperationKind::Query => {
-                    write_indentation(&mut generated_types, indentation).unwrap();
-                    writeln!(generated_types, "").unwrap();
-                    write_indentation(&mut generated_types, indentation).unwrap();
-                    writeln!(generated_types, "type queryRef").unwrap();
-                    write_indentation(&mut generated_types, indentation).unwrap();
-                    writeln!(generated_types, "").unwrap();
-                }
-                OperationKind::Mutation | OperationKind::Subscription => (),
-            },
+            _ => ()
         }
 
         // Let's write some connection helpers! These are emitted anytime
         // there's an @connection directive present in a fragment. They're all
         // about simplifying using connections.
-        match &self.operation_meta_data.connection_config {
-            None => (),
-            Some(connection_config) => {
+        match (&preloadable_mode, &self.operation_meta_data.connection_config) {
+            (PreloadableMode::ThinFile, _) | (_, None) => (),
+            (_, Some(connection_config)) => {
                 write_indentation(&mut generated_types, indentation).unwrap();
                 write_indentation(&mut generated_types, indentation).unwrap();
                 writeln!(
@@ -2428,9 +2473,9 @@ impl Writer for OCamlPrinter {
         writeln!(generated_types, "open Types").unwrap();
 
         // Write getConnectionNodes if we can.
-        match &self.operation_meta_data.connection_config {
-            None => (),
-            Some(connection_config) => {
+        match (&preloadable_mode, &self.operation_meta_data.connection_config) {
+            (PreloadableMode::ThinFile, _) | (_, None) => (),
+            (_, Some(connection_config)) => {
                 // Print the getConnectionNodes helper. This can target a
                 // connection that's either in a nested object somewhere, or
                 // directly on the fragment.
@@ -2479,12 +2524,17 @@ impl Writer for OCamlPrinter {
             }
         }
 
-        self.enums
-            .iter()
-            .unique_by(|full_enum| &full_enum.name)
-            .for_each(|full_enum| {
-                write_enum_util_functions(&mut generated_types, indentation, &full_enum).unwrap()
-            });
+        match &preloadable_mode {
+            PreloadableMode::ThinFile => (),
+            _ => {
+                self.enums
+                    .iter()
+                    .unique_by(|full_enum| &full_enum.name)
+                    .for_each(|full_enum| {
+                        write_enum_util_functions(&mut generated_types, indentation, &full_enum).unwrap()
+                    });
+            }
+        }
 
         // This prints a bunch of object maker helpers for input objects, and
         // variables. In a future, these should probably not be emitted by
@@ -2953,13 +3003,13 @@ impl Writer for OCamlPrinter {
         ""
     }
 
-    fn write_local_type(&mut self, name: &str, ast: &AST) -> Result {
+    fn write_type_assertion(&mut self, name: &str, ast: &AST) -> Result {
         // Handle provided variables. This below pulls put what we need from the
         // AST Relay gives us for provided variables. It's a bit convoluted, but
         // essentially extracts the provided variable key name, and its return
         // type. We need those for printing the type + values for provided
         // variables.
-        if name == "ProvidedVariablesType" {
+        if name.contains("__relay_internal__pv__") {
             match &ast {
                 AST::ExactObject(props) => {
                     let mut provided_variables = vec![];
@@ -2986,6 +3036,7 @@ impl Writer for OCamlPrinter {
                                         self,
                                         &Context::NotRelevant,
                                         &mut needs_conversion,
+                                        false
                                     ),
                                     needs_conversion: needs_conversion.clone(),
                                 });
@@ -3012,7 +3063,7 @@ impl Writer for OCamlPrinter {
                                             ),
                                         });
                                     }
-                                    Some(AstToStringNeedsConversion::CustomScalar(scalar_name)) => {
+                                    Some(AstToStringNeedsConversion::CustomScalar(scalar_name, found_in_array)) => {
                                         self.conversion_instructions.push(InstructionContainer {
                                             context: Context::Variables,
                                             at_path: vec![
@@ -3021,6 +3072,7 @@ impl Writer for OCamlPrinter {
                                             ],
                                             instruction: ConverterInstructions::ConvertCustomField(
                                                 scalar_name.clone(),
+                                                found_in_array.clone()
                                             ),
                                         });
                                     }
@@ -3068,6 +3120,7 @@ impl OCamlPrinter {
     pub fn new(
         operation_meta_data: MelangeRelayOperationMetaData,
         typegen_definition: DefinitionType,
+        is_preloadable_thin_file: Option<bool>,
     ) -> Self {
         Self {
             enums: vec![],
@@ -3083,6 +3136,7 @@ impl OCamlPrinter {
             operation_meta_data,
             relay_resolvers: vec![],
             provided_variables: None,
+            is_preloadable_thin_file
         }
     }
 }

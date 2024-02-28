@@ -33,6 +33,7 @@ pub fn default_generate_extra_artifacts_fn(
         .map(|artifact| match &artifact.content {
             ArtifactContent::Operation {
                 normalization_operation,
+                typegen_operation,
                 id_and_text_hash,
                 ..
             } => {
@@ -42,6 +43,7 @@ pub fn default_generate_extra_artifacts_fn(
 
                 Some(generate_preloadable_query_parameters_artifact(
                     project_config,
+                    typegen_operation,
                     normalization_operation,
                     id_and_text_hash,
                     artifact.artifact_source_keys.clone(),

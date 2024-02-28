@@ -1,6 +1,8 @@
-(* @sourceLoc Test_query.ml *)
+(* @sourceLoc Test_preloadedQuery.re *)
 (* @generated *)
 [%%mel.raw "/* @generated */"]
+// @relayRequestID 64e1bd5c44a860103e5980b544f5e454
+
 module Types = struct
   [@@@ocaml.warning "-30"]
 
@@ -181,7 +183,7 @@ return {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Fragment",
     "metadata": null,
-    "name": "TestQuery",
+    "name": "TestPreloadedQuery",
     "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
@@ -190,38 +192,19 @@ return {
   "operation": {
     "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "TestQuery",
+    "name": "TestPreloadedQuery",
     "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "123064f3c998fd5b717ca05be99d7ee1",
-    "id": null,
+    "id": "64e1bd5c44a860103e5980b544f5e454",
     "metadata": {},
-    "name": "TestQuery",
+    "name": "TestPreloadedQuery",
     "operationKind": "query",
-    "text": "query TestQuery(\n  $status: OnlineStatus\n) {\n  users(status: $status) {\n    edges {\n      node {\n        id\n        firstName\n        onlineStatus\n      }\n    }\n  }\n}\n"
+    "text": null
   }
 };
 })() |json}]
 
-let (load :
-    environment:Melange_relay.Environment.t
-    -> variables:Types.variables
-    -> ?fetchPolicy:Melange_relay.FetchPolicy.t
-    -> ?fetchKey:string
-    -> ?networkCacheConfig:Melange_relay.cacheConfig
-    -> unit
-    -> queryRef)
-=
-fun ~environment ~variables ?fetchPolicy ?fetchKey ?networkCacheConfig () ->
-  Melange_relay.loadQuery
-    environment
-    node
-    (variables |. Internal.convertVariables)
-    { fetchKey
-    ; fetchPolicy = fetchPolicy |. Melange_relay.FetchPolicy.map
-    ; networkCacheConfig
-    }
 
 type nonrec 'response rawPreloadToken =
   { source : 'response Melange_relay.Observable.t Js.Nullable.t }
@@ -242,4 +225,10 @@ let queryRefToPromise token =
                (makeObserver ~complete:(fun () -> (resolve (Ok ()) [@u])) ())
         in
         ())
+}
+type operationId
+type operationTypeParams = {id: operationId}
+external getOperationTypeParams: operationType -> operationTypeParams = "params" [@@mel.get]
+external setPreloadQuery: operationId -> operationType -> unit = "set" [@@mel.module "relay-runtime"] [@@mel.scope "PreloadableQueryRegistry"]
 
+ let () = (getOperationTypeParams node).id |> setPreloadQuery node

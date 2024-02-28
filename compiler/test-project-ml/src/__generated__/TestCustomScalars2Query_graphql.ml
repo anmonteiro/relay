@@ -1,20 +1,26 @@
-(* @sourceLoc Test_ml_query.ml *)
+(* @sourceLoc Test_customScalars.ml *)
 (* @generated *)
 [%%mel.raw "/* @generated */"]
 module Types = struct
   [@@@ocaml.warning "-30"]
 
-  type response_loggedInUser = {
-    avatarUrl: string;
+  type response = {
+    customScalarArray: string option;
   }
-  type response_t = {
-    loggedInUser: response_loggedInUser;
+  type rawResponse = response
+  type variables = {
+    asArray: SomeModule.Datetime.t array;
   }
-  type response = response_t option
-  type rawResponse = response_t
-  type variables = unit
-  type refetchVariables = unit
-  let makeRefetchVariables () = ()
+  type refetchVariables = {
+    asArray: SomeModule.Datetime.t array option;
+  }
+  let makeRefetchVariables 
+    ?asArray 
+    ()
+  : refetchVariables = {
+    asArray= asArray
+  }
+
 end
 
 
@@ -22,9 +28,11 @@ type queryRef
 
 module Internal = struct
   let variablesConverter: string Js.Dict.t Js.Dict.t Js.Dict.t = [%mel.raw 
-    {json|{}|json}
+    {json|{"__root":{"asArray":{"ca":"SomeModule.Datetime"}}}|json}
   ]
-  let variablesConverterMap = ()
+  let variablesConverterMap = let o = Js.Dict.empty () in 
+    Js.Dict.set o "SomeModule.Datetime" (Obj.magic SomeModule.Datetime.serialize : unit);
+  o
   let convertVariables v = Melange_relay.convertObj v 
     variablesConverter 
     variablesConverterMap 
@@ -57,7 +65,10 @@ end
 module Utils = struct
   [@@@ocaml.warning "-33"]
   open Types
-  external makeVariables: unit -> unit = "" [@@mel.obj]
+  external makeVariables:     asArray: SomeModule.Datetime.t array-> 
+   variables = "" [@@mel.obj]
+
+
 end
 
 type relayOperationNode
@@ -65,80 +76,52 @@ type operationType = relayOperationNode Melange_relay.queryNode
 
 
 let node: operationType = [%mel.raw {json| (function(){
-var v0 = {
-  "alias": null,
-  "args": null,
-  "kind": "ScalarField",
-  "name": "avatarUrl",
-  "storageKey": null
-};
-return {
-  "fragment": {
-    "argumentDefinitions": [],
-    "kind": "Fragment",
-    "metadata": null,
-    "name": "TestMlQueryWithRequired_BubbleToTop_Query",
-    "selections": [
+var v0 = [
+  {
+    "defaultValue": null,
+    "kind": "LocalArgument",
+    "name": "asArray"
+  }
+],
+v1 = [
+  {
+    "alias": null,
+    "args": [
       {
-        "kind": "RequiredField",
-        "field": {
-          "alias": null,
-          "args": null,
-          "concreteType": "User",
-          "kind": "LinkedField",
-          "name": "loggedInUser",
-          "plural": false,
-          "selections": [
-            {
-              "kind": "RequiredField",
-              "field": (v0/*: any*/),
-              "action": "NONE",
-              "path": "loggedInUser.avatarUrl"
-            }
-          ],
-          "storageKey": null
-        },
-        "action": "NONE",
-        "path": "loggedInUser"
+        "kind": "Variable",
+        "name": "asArray",
+        "variableName": "asArray"
       }
     ],
+    "kind": "ScalarField",
+    "name": "customScalarArray",
+    "storageKey": null
+  }
+];
+return {
+  "fragment": {
+    "argumentDefinitions": (v0/*: any*/),
+    "kind": "Fragment",
+    "metadata": null,
+    "name": "TestCustomScalars2Query",
+    "selections": (v1/*: any*/),
     "type": "Query",
     "abstractKey": null
   },
   "kind": "Request",
   "operation": {
-    "argumentDefinitions": [],
+    "argumentDefinitions": (v0/*: any*/),
     "kind": "Operation",
-    "name": "TestMlQueryWithRequired_BubbleToTop_Query",
-    "selections": [
-      {
-        "alias": null,
-        "args": null,
-        "concreteType": "User",
-        "kind": "LinkedField",
-        "name": "loggedInUser",
-        "plural": false,
-        "selections": [
-          (v0/*: any*/),
-          {
-            "alias": null,
-            "args": null,
-            "kind": "ScalarField",
-            "name": "id",
-            "storageKey": null
-          }
-        ],
-        "storageKey": null
-      }
-    ]
+    "name": "TestCustomScalars2Query",
+    "selections": (v1/*: any*/)
   },
   "params": {
-    "cacheID": "e6a499b4f7eafa5ebc0e02be6de99029",
+    "cacheID": "c8b3ec175f5f5908a091fe548358af1d",
     "id": null,
     "metadata": {},
-    "name": "TestMlQueryWithRequired_BubbleToTop_Query",
+    "name": "TestCustomScalars2Query",
     "operationKind": "query",
-    "text": "query TestMlQueryWithRequired_BubbleToTop_Query {\n  loggedInUser {\n    avatarUrl\n    id\n  }\n}\n"
+    "text": "query TestCustomScalars2Query(\n  $asArray: [Datetime!]!\n) {\n  customScalarArray(asArray: $asArray)\n}\n"
   }
 };
 })() |json}]
