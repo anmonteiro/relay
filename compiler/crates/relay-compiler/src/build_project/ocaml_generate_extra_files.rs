@@ -4,18 +4,49 @@ use super::Config;
 use common::SourceLocationKey;
 use relay_config::ProjectConfig;
 use relay_transforms::Programs;
+use relay_transforms::is_operation_preloadable;
 use relay_typegen::ocaml_utils::{get_safe_key, print_type_reference};
 use schema::{SDLSchema, Schema, TypeReference};
 
 use crate::Artifact;
+use crate::ArtifactContent;
+use crate::build_project::generate_preloadable_query_parameters_artifact;
 
 pub(crate) fn ocaml_generate_extra_artifacts(
     _config: &Config,
     project_config: &ProjectConfig,
     schema: &SDLSchema,
     _programs: &Programs,
-    _artifacts: &[Artifact],
+    artifacts: &[Artifact],
 ) -> Vec<Artifact> {
+    // Preloaded operations
+    let mut extra_artifacts: Vec<Artifact> = artifacts
+    .iter()
+    .map(|artifact| match &artifact.content {
+        ArtifactContent::Operation {
+            normalization_operation,
+            typegen_operation,
+            id_and_text_hash,
+            ..
+        } => {
+            if !is_operation_preloadable(&normalization_operation) {
+                return None;
+            }
+
+            Some(generate_preloadable_query_parameters_artifact(
+                project_config,
+                typegen_operation,
+                normalization_operation,
+                id_and_text_hash,
+                artifact.artifact_source_keys.clone(),
+                artifact.source_file,
+            ))
+        }
+        _ => None,
+    })
+    .filter_map(|artifact| artifact)
+    .collect();
+
     let dummy_source_file = SourceLocationKey::Generated;
 
     let mut content = String::from("(* @generated *)\n[@@@ocaml.warning \"-30\"]\n\n");
@@ -202,12 +233,16 @@ pub(crate) fn ocaml_generate_extra_artifacts(
         .unwrap();
     });
 
-    vec![Artifact {
+    let schema_assets_artifact = Artifact {
         artifact_source_keys: vec![],
         path: project_config.path_for_language_specific_artifact(dummy_source_file, "RelaySchemaAssets_graphql".to_string()),
         source_file: dummy_source_file,
         content: crate::ArtifactContent::Generic {
             content: content.as_bytes().to_vec(),
         },
-    }]
+    };
+
+    extra_artifacts.push(schema_assets_artifact);
+
+    extra_artifacts
 }

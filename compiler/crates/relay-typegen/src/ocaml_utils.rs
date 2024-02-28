@@ -400,7 +400,8 @@ pub fn print_constant_value(
                 arguments
                     .iter()
                     .map(|arg| {
-                        if false // wrap_in_arg
+                        if false
+                        // wrap_in_arg
                         {
                             format!(
                                 "\"{}\" = {}",
@@ -1024,8 +1025,10 @@ pub fn ast_to_string<'a>(
                 ClassifiedIdentifier::RawIdentifier(identifier) => {
                     match classify_ocaml_value_string(&identifier) {
                         MelangeCustomTypeValue::Module => {
-                            *needs_conversion =
-                                Some(AstToStringNeedsConversion::CustomScalar(identifier.clone(), found_in_array));
+                            *needs_conversion = Some(AstToStringNeedsConversion::CustomScalar(
+                                identifier.clone(),
+                                found_in_array,
+                            ));
                             format!("{}.t", identifier)
                         }
                         MelangeCustomTypeValue::Type => identifier.to_string(),
