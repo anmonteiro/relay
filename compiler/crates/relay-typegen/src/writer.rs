@@ -380,6 +380,7 @@ pub trait Writer: Write {
 
     fn write_export_fragment_type(&mut self, name: &str) -> FmtResult;
 
+    #[allow(unused)]
     fn write_export_fragment_types(
         &mut self,
         fragment_type_name_1: &str,
