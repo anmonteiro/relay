@@ -31,3 +31,6 @@ members = [
     "crates/schema-validate",
     "crates/signedsource",
 ]
+
+[workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(memory_consistency_assertions)'] }
