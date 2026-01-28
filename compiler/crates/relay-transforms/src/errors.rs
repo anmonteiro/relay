@@ -5,6 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#![allow(unused_assignments)]
+
 use common::ArgumentName;
 use common::DiagnosticDisplay;
 use common::DirectiveName;

@@ -5,6 +5,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
+#![allow(unused_assignments)]
+
 use std::fmt::Display;
 
 use common::ArgumentName;

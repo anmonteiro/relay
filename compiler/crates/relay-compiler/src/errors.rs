@@ -1,3 +1,5 @@
+#![allow(unused_assignments)]
+
 /*
  * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
